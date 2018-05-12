@@ -2,8 +2,8 @@ import csv
 import math
 import pandas as pd
 import matplotlib.pyplot as plt
+from imblearn.combine import SMOTETomek
 from imblearn.under_sampling import RandomUnderSampler
-from sklearn.datasets import make_classification
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from imblearn.over_sampling import SMOTE
@@ -11,7 +11,6 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import recall_score, roc_curve, auc
-from sklearn.svm import SVC, LinearSVC
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import datetime
@@ -29,9 +28,65 @@ class FraudDetection:
     sek_to_usd_multiplier = 0.118
     list = []
 
-    def smote(self):
+    def read_csv(self):
         transactions = pd.read_csv("C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q4\\CS4035 Cyber Data Analytics\\Week 1 - "
-                                "Credit Card Fraud\\data_for_student_case.csv(1)\\hallo.csv")
+                                "Credit Card Fraud\\data_for_student_case.csv(1)\\data_for_student_case - Copy.csv")
+        return transactions
+
+    def filter_csv(self):
+        csv = self.read_csv()
+        csv = csv[csv.simple_journal != 'Refused']
+        csv['simple_journal'] = csv['simple_journal'].replace('Settled', 0).replace('Chargeback', 1)
+        return csv
+
+
+    def get_classifiers(self):
+        return [KNeighborsClassifier(), RandomForestClassifier(), LogisticRegression(), DecisionTreeClassifier()]
+
+    def run_classifier(self, training_features, training_target, validation_features, validation_target, test_features,
+                       test_target, list_of_classifiers=None, label="Original"):
+        list = []
+        if list_of_classifiers is None:
+            list_of_classifiers = self.get_classifiers()
+
+        for clf in list_of_classifiers:
+            print("Name = " + clf.__class__.__name__)
+            clf.fit(training_features, training_target)
+            print(label)
+            print('Validation Results')
+            print(clf.score(validation_features, validation_target))
+            print(recall_score(validation_target, clf.predict(validation_features)))
+            print('\nTest Results')
+            print(clf.score(test_features, test_target))
+            print(recall_score(test_target, clf.predict(test_features)))
+
+            actual = test_target
+            predictions = clf.predict(test_features)
+            print(confusion_matrix(actual, predictions))
+
+            Y_score = clf.predict_proba(test_features)[:, 1]
+            fpr, tpr, _ = roc_curve(test_target, Y_score)
+
+            roc_auc = auc(fpr, tpr)
+
+            list.append([fpr, tpr, roc_auc])
+
+        return list
+
+
+    def smote(self):
+        transactions = self.filter_csv()
+
+        # print(transactions.issuercountrycode.value_counts())
+        # print(transactions.txvariantcode.value_counts())
+        # print(transactions.currencycode.value_counts())
+        # print(transactions.shoppercountrycode.value_counts())
+        # print(transactions.shopperinteraction.value_counts())
+        # print(transactions.simple_journal.value_counts())
+        # print(transactions.cardverificationcodesupplied.value_counts())
+        # print(transactions.cvcresponsecode.value_counts())
+        # print(transactions.accountcode.value_counts())
+
         model_variables = ['issuercountrycode', 'txvariantcode', 'bin', 'amount', 'currencycode',
                            'shoppercountrycode', 'shopperinteraction', 'simple_journal',
                            'cardverificationcodesupplied', 'cvcresponsecode', 'accountcode']
@@ -45,8 +100,8 @@ class FraudDetection:
         # Split in into two datasets, second being test set.
         tv_features, test_features, \
         tv_target, test_target = train_test_split(transactions_relevant_encoded.drop(['simple_journal'], axis=1),
-                                                        transactions_relevant_encoded['simple_journal'],
-                                                        test_size=0.1)
+                                                  transactions_relevant_encoded['simple_journal'],
+                                                  test_size=0.1)
 
 
         #Split the first dataset into training set and validation set.
@@ -54,168 +109,71 @@ class FraudDetection:
         training_target, validation_target = train_test_split(tv_features,
                                                               tv_target,
                                                               test_size=0.1)
-
-        print(type(transactions_relevant_encoded))
         row, _ = transactions_relevant_encoded.shape
 
         # Smote
-        sm = SMOTE()
+        print("Smoting")
+        sm = SMOTE(random_state=12)
         training_features_smoted, training_target_smoted = sm.fit_sample(training_features, training_target)
 
         # Undersample
+        print("Undersampling")
         rus = RandomUnderSampler(return_indices=True)
         training_features_undersampled, training_target_undersampled, _ = rus.fit_sample(training_features,
                                                                                          training_target)
 
+        # Smote Tomek
+        print("Tomek Smoting")
+        smt = SMOTETomek(random_state=12)
+        training_features_tomek, training_target_tomek = smt.fit_sample(training_features, training_target)
+
         print("Length dataset: " + str(row))
         print("Length training set: " + str(len(training_features)))
-        print("Difference: " + str((len(training_features_smoted) - len(training_features)) / len(training_features)))
         print("Length smoted training set: " + str(len(training_features_smoted)))
+        print("Difference original - smoted: " + str((len(training_features_smoted) - len(training_features)) / len(
+            training_features)))
         print("Length undersampled training set: " + str(len(training_features_undersampled)))
-        print("Difference: " + str((len(training_features_undersampled) - len(training_features)) / len(training_features)))
+        print("Difference original - undersampled: " + str((len(training_features_undersampled) - len(
+            training_features)) / len(training_features)))
+        print("Length Tomeksmoted training set: " + str(len(training_features_tomek)))
+        print("Difference Original - Tomeksmoted: " + str((len(training_features_tomek) - len(training_features)) / len(
+            training_features)))
         print("Length validation set: " + str(len(validation_features)))
         print("Length testing set: " + str(len(test_features)))
+        print("\n\n")
 
 
-        classifiers = [KNeighborsClassifier(n_neighbors=1), RandomForestClassifier(),
-                       LogisticRegression(), DecisionTreeClassifier(), AdaBoostClassifier()]
+        list_unsmoted = self.run_classifier(training_features, training_target, validation_features, validation_target,
+                                       test_features, test_target, label="Unsmoted")
 
-        list = []
+        list_smoted = self.run_classifier(training_features_smoted, training_target_smoted, validation_features,
+                                          validation_target, test_features, test_target, label="Smoted")
 
-        for clf_rf in classifiers:
-            print("Name = " + clf_rf.__class__.__name__)
-            clf_rf.fit(training_features, training_target)
-            print("UNSMOTED!")
-            print('Validation Results')
-            print(clf_rf.score(validation_features, validation_target))
-            print(recall_score(validation_target, clf_rf.predict(validation_features)))
-            print('\nTest Results')
-            print(clf_rf.score(test_features, test_target))
-            print(recall_score(test_target, clf_rf.predict(test_features)))
+        list_tomek = self.run_classifier(training_features_tomek, training_target_tomek, validation_features,
+                                         validation_target, test_features, test_target, label="Tomek")
 
-            actual = validation_target
-            predictions = clf_rf.predict(validation_features)
-            # print(type(actual))
-            # print(type(predictions))
-            # print(len(actual))
-            # print(len(predictions))
-            # print(actual)
-            # print(predictions)
-            print(confusion_matrix(actual, predictions))
+        list_undersampled = self.run_classifier(training_features_undersampled, training_target_undersampled,
+                                                validation_features, validation_target, test_features, test_target,
+                                                label="Undersampled")
 
-            actual = test_target
-            predictions = clf_rf.predict(test_features)
-
-            Y_score = clf_rf.predict_proba(test_features)[:, 1]
-            fpr, tpr, _ = roc_curve(test_target, Y_score)
-
-            roc_auc = auc(fpr, tpr)
-
-            list.append([fpr, tpr, roc_auc])
-
-            print(confusion_matrix(actual, predictions))
-
-        classifiers = [KNeighborsClassifier(n_neighbors=1), RandomForestClassifier(),
-                       LogisticRegression(), DecisionTreeClassifier(), AdaBoostClassifier()]
-
-        list2 = []
-
-        for clf_rf in classifiers:
-            print("Name = " + clf_rf.__class__.__name__)
-            clf_rf.fit(training_features_undersampled, training_target_undersampled)
-            print("UNDERSAMPLED!")
-            print('Validation Results')
-            print(clf_rf.score(validation_features, validation_target))
-            print(recall_score(validation_target, clf_rf.predict(validation_features)))
-            print('\nTest Results')
-            print(clf_rf.score(test_features, test_target))
-            print(recall_score(test_target, clf_rf.predict(test_features)))
-
-            actual = validation_target
-            predictions = clf_rf.predict(validation_features)
-            # print(type(actual))
-            # print(type(predictions))
-            # print(len(actual))
-            # print(len(predictions))
-            # print(actual)
-            # print(predictions)
-            print(confusion_matrix(actual, predictions))
-
-            actual = test_target
-            predictions = clf_rf.predict(test_features)
-
-            Y_score = clf_rf.predict_proba(test_features)[:, 1]
-            fpr, tpr, _ = roc_curve(test_target, Y_score)
-
-            roc_auc = auc(fpr, tpr)
-
-            list2.append([fpr, tpr, roc_auc])
-
-            print(confusion_matrix(actual, predictions))
-
-        classifiers3 = [KNeighborsClassifier(n_neighbors=1), RandomForestClassifier(),
-                       LogisticRegression(), DecisionTreeClassifier(), AdaBoostClassifier()]
-
-        i = 0
-        for clf_rf in classifiers3:
-            print("Name = " + clf_rf.__class__.__name__)
-
-            clf_rf.fit(training_features_smoted, training_target_smoted)
-            print("SMOTED!")
-            print('Validation Results')
-            score = clf_rf.score(validation_features, validation_target)
-            print(score)
-            print(recall_score(validation_target, clf_rf.predict(validation_features)))
-            print('\nTest Results')
-            print(clf_rf.score(test_features, test_target))
-            print(recall_score(test_target, clf_rf.predict(test_features)))
-
-            actual = test_target
-            predictions = clf_rf.predict(test_features)
-            print(confusion_matrix(actual, predictions))
-
-            false_positive_rate, true_positive_rate, thresholds = roc_curve(actual, predictions)
-
-            # get roc/auc info
-            Y_score = clf_rf.predict_proba(test_features)[:, 1]
-            fpr, tpr, _ = roc_curve(test_target, Y_score)
-
-            roc_auc = auc(fpr, tpr)
-
-            # make the plot
+        # Make the plots
+        list_of_classifiers = self.get_classifiers()
+        for i in range(0, len(list_of_classifiers)):
             plt.figure(figsize=(10, 10))
             plt.plot([0, 1], [0, 1], 'k--')
-            plt.xlim([-0.05, 1.0])
-            plt.ylim([0.0, 1.05])
+            plt.xlim([-0.01, 1.0])
+            plt.ylim([0.0, 1.01])
             plt.xlabel('False Positive Rate')
             plt.ylabel('True Positive Rate')
             plt.grid(True)
-            plt.plot(fpr, tpr, label='AUC smoted = {0}'.format(roc_auc))
-            plt.plot(list[i][0], list[i][1], label='AUC unsmoted = {0}'.format(list[i][2]))
-            plt.plot(list2[i][0], list2[i][1], label='AUC undersampled = {0}'.format(list2[i][2]))
+            plt.plot(list_smoted[i][0], list_smoted[i][1], label='AUC smoted = {0}'.format(list_smoted[i][2]))
+            plt.plot(list_unsmoted[i][0], list_unsmoted[i][1], label='AUC unsmoted = {0}'.format(list_unsmoted[i][2]))
+            plt.plot(list_undersampled[i][0], list_undersampled[i][1], label='AUC undersampled = {0}'.format(
+                list_undersampled[i][2]))
+            plt.plot(list_tomek[i][0], list_tomek[i][1], label='AUC Tomek = {0}'.format(list_tomek[i][2]))
             plt.legend(loc="lower right", shadow=True, fancybox=True)
-            plt.title(clf_rf.__class__.__name__)
+            plt.title(list_of_classifiers[i].__class__.__name__)
             plt.show()
-
-            # roc_auc = auc(false_positive_rate, true_positive_rate)
-            #
-            # plt.title('ROC')
-            # plt.plot(false_positive_rate, true_positive_rate, 'b',
-            #          label='AUC = %0.2f' % roc_auc)
-            # plt.legend(loc='lower right')
-            # plt.plot([0, 1], [0, 1], 'r--')
-            # plt.xlim([-0.1, 1.2])
-            # plt.ylim([-0.1, 1.2])
-            # plt.ylabel('True Positive Rate')
-            # plt.xlabel('False Positive Rate')
-            # plt.show()
-
-            actual = test_target
-            predictions = clf_rf.predict(test_features)
-            print(confusion_matrix(actual, predictions))
-            i = i + 1
-
-
 
         pass
 
