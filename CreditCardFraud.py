@@ -22,6 +22,7 @@ class FraudDetection:
     reader = None
     currencies = {'GBP': 1.550, 'AUD': 0.735, 'MXN': 0.062, 'SEK': 0.118, 'NZD': 0.677}
     list = []
+    csv = None
 
     def read_csv(self):
         transactions = pd.read_csv("C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q4\\CS4035 Cyber Data Analytics\\Week 1 - "
@@ -41,16 +42,29 @@ class FraudDetection:
         # Change all 4, 5, 6 to 3
         csv['cvcresponsecode'] = csv['cvcresponsecode'].replace(4, 3).replace(5, 3).replace(6, 3)
 
-        print(csv.shape[0])
-
         # Change all currencies to USD for better comparison between amount of different currencies.
-        for index, row in csv.iterrows():
-            if index == csv.shape[0]:
-                break
-
-            csv.iat[index, 5] = math.ceil(row['amount'] * self.currencies[row['currencycode']])
+        # for index, row in csv.iterrows():
+        #     if index == csv.shape[0]:
+        #         break
+        #
+        #     csv.iat[index, 5] = math.ceil(row['amount'] * self.currencies[row['currencycode']])
 
         return csv
+
+    def get_dataset(self):
+        if self.csv is None:
+            self.csv = self.preprocess_csv()
+        transactions = self.csv
+
+        model_variables = ['issuercountrycode', 'txvariantcode', 'bin', 'amount', 'currencycode',
+                           'shoppercountrycode', 'shopperinteraction', 'simple_journal',
+                           'cardverificationcodesupplied', 'cvcresponsecode', 'accountcode']
+
+        # Transactions with only the relevant columns/columsn in model_variables
+        transactions_data_relevant = transactions[model_variables]
+
+        # Get the one hot encoded thingy.
+        return pd.get_dummies(transactions_data_relevant)
 
 
     def get_classifiers(self):
@@ -58,8 +72,11 @@ class FraudDetection:
 
     def run_classifier(self, training_features, training_target, validation_features, validation_target, test_features,
                        test_target, list_of_classifiers=None, label="Original"):
+
+        list_roc = [] # List for false positive rate, true positve rate and auc.
+        list_scores = [] # List for accuracy and precision
+
         # Get list of classifiers
-        list = []
         if list_of_classifiers is None:
             list_of_classifiers = self.get_classifiers()
 
@@ -67,12 +84,17 @@ class FraudDetection:
             print("Name = " + clf.__class__.__name__)
             clf.fit(training_features, training_target)
             print(label)
-            print('Validation Results')
-            print(clf.score(validation_features, validation_target))
-            print(recall_score(validation_target, clf.predict(validation_features)))
+            if not (validation_features is None or validation_target is None):
+                print('Validation Results')
+                print(clf.score(validation_features, validation_target))
+                print(recall_score(validation_target, clf.predict(validation_features)))
             print('\nTest Results')
-            print(clf.score(test_features, test_target))
-            print(recall_score(test_target, clf.predict(test_features)))
+            precision = clf.score(test_features, test_target)
+            recall = recall_score(test_target, clf.predict(test_features))
+            print(precision)
+            print(recall)
+
+
 
             actual = test_target
             predictions = clf.predict(test_features)
@@ -83,38 +105,21 @@ class FraudDetection:
 
             roc_auc = auc(fpr, tpr)
 
-            list.append([fpr, tpr, roc_auc])
+            list_roc.append([fpr, tpr, roc_auc])
+            list_scores.append([precision, recall])
 
-        return list
+
+        return list_roc, list_scores
 
 
     def smote(self):
-        transactions = self.preprocess_csv()
+        transactions = self.get_dataset()
 
-        # print(transactions.issuercountrycode.value_counts())
-        # print(transactions.txvariantcode.value_counts())
-        # print(transactions.currencycode.value_counts())
-        # print(transactions.shoppercountrycode.value_counts())
-        # print(transactions.shopperinteraction.value_counts())
-        # print(transactions.simple_journal.value_counts())
-        # print(transactions.cardverificationcodesupplied.value_counts())
-        # print(transactions.cvcresponsecode.value_counts())
-        # print(transactions.accountcode.value_counts())
-
-        model_variables = ['issuercountrycode', 'txvariantcode', 'bin', 'amount', 'currencycode',
-                           'shoppercountrycode', 'shopperinteraction', 'simple_journal',
-                           'cardverificationcodesupplied', 'cvcresponsecode', 'accountcode']
-
-        # Transactions with only the relevant columns/columsn in model_variables
-        transactions_data_relevant = transactions[model_variables]
-
-        # Get the one hot encoded thingy.
-        transactions_relevant_encoded = pd.get_dummies(transactions_data_relevant)
 
         # Split in into two datasets, second being test set.
         tv_features, test_features, \
-        tv_target, test_target = train_test_split(transactions_relevant_encoded.drop(['simple_journal'], axis=1),
-                                                  transactions_relevant_encoded['simple_journal'],
+        tv_target, test_target = train_test_split(transactions.drop(['simple_journal'], axis=1),
+                                                  transactions['simple_journal'],
                                                   test_size=0.1)
 
 
@@ -123,7 +128,7 @@ class FraudDetection:
         training_target, validation_target = train_test_split(tv_features,
                                                               tv_target,
                                                               test_size=0.1)
-        row, _ = transactions_relevant_encoded.shape
+        row, _ = transactions.shape
 
         # Smote
         print("Smoting")
@@ -157,16 +162,17 @@ class FraudDetection:
         print("\n\n")
 
 
-        list_unsmoted = self.run_classifier(training_features, training_target, validation_features, validation_target,
+        list_unsmoted, _ = self.run_classifier(training_features, training_target, validation_features,
+                                              validation_target,
                                        test_features, test_target, label="Unsmoted")
 
-        list_smoted = self.run_classifier(training_features_smoted, training_target_smoted, validation_features,
+        list_smoted, _ = self.run_classifier(training_features_smoted, training_target_smoted, validation_features,
                                           validation_target, test_features, test_target, label="Smoted")
 
-        list_tomek = self.run_classifier(training_features_tomek, training_target_tomek, validation_features,
+        list_tomek, _ = self.run_classifier(training_features_tomek, training_target_tomek, validation_features,
                                          validation_target, test_features, test_target, label="Tomek")
 
-        list_undersampled = self.run_classifier(training_features_undersampled, training_target_undersampled,
+        list_undersampled, _ = self.run_classifier(training_features_undersampled, training_target_undersampled,
                                                 validation_features, validation_target, test_features, test_target,
                                                 label="Undersampled")
 
@@ -321,11 +327,45 @@ class FraudDetection:
         self.smote()
 
     def classification_task(self):
+        transactions = self.get_dataset()
+        print(transactions.shape[0])
+        dataset_features = transactions.drop(['simple_journal'], axis=1)
+        dataset_target = transactions['simple_journal']
         kfold = KFold(n_splits=10)
+        print(kfold.get_n_splits(dataset_features, dataset_target))
+        i = 0
+
+        list_accuracy = []
+        list_precision = []
+
+        for train_index, test_index in kfold.split(dataset_features, dataset_target):
+            training_features = dataset_features.iloc[train_index]
+            test_features = dataset_features.iloc[test_index]
+            training_target = dataset_target.iloc[train_index]
+            test_target = dataset_target.iloc[test_index]
+
+            # Undersample
+            print("Undersampling")
+            rus = RandomUnderSampler(return_indices=True)
+            training_features_undersampled, training_target_undersampled, _ = rus.fit_sample(training_features,
+                                                                                             training_target)
+
+            classifier = [LogisticRegression()]
+            _, scores = self.run_classifier(training_features_undersampled, training_target_undersampled, None, None,
+                                            test_features, test_target, classifier, label="Whitebox classification")
+            list_accuracy.append(scores[0][0])
+            list_precision.append(scores[0][1])
+
+        average_accuracy = sum(list_accuracy)/len(list_accuracy)
+        average_precision = sum(list_precision) / len(list_precision)
+
+        print(average_accuracy)
+        print(average_precision)
+
 
 
 
 if __name__ == "__main__":
     a = FraudDetection()
-    a.imbalance_task()
+    # a.imbalance_task()
     a.classification_task()
