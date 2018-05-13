@@ -83,7 +83,7 @@ class FraudDetection:
 
 
     def smote(self):
-        transactions = self.filter_csv()
+        transactions = self.preprocess_csv()
 
         # print(transactions.issuercountrycode.value_counts())
         # print(transactions.txvariantcode.value_counts())
