@@ -30,6 +30,7 @@ class FraudDetection:
 
     # Preprocesses the dataset to get better results.
     def preprocess_csv(self):
+
         csv = self.read_csv()
 
         # Remove all "Refused" and changes "Settled" and "Chargeback" to "0" and "1" respectively
@@ -40,8 +41,14 @@ class FraudDetection:
         # Change all 4, 5, 6 to 3
         csv['cvcresponsecode'] = csv['cvcresponsecode'].replace(4, 3).replace(5, 3).replace(6, 3)
 
+        print(csv.shape[0])
+
         # Change all currencies to USD for better comparison between amount of different currencies.
         for index, row in csv.iterrows():
+            if index == csv.shape[0]:
+                break
+
+            print(index)
             csv.iat[index, 5] = math.ceil(row['amount'] * self.currencies[row['currencycode']])
 
         return csv
