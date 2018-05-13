@@ -3,15 +3,14 @@ import math
 import pandas as pd
 import matplotlib.pyplot as plt
 from imblearn.combine import SMOTETomek
-from imblearn.under_sampling import RandomUnderSampler
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LogisticRegression
-from imblearn.over_sampling import SMOTE
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import recall_score, roc_curve, auc, confusion_matrix
+from sklearn.model_selection import train_test_split, KFold
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import recall_score, roc_curve, auc
-from sklearn.metrics import confusion_matrix
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import RandomUnderSampler
 import seaborn as sns
 import datetime
 
@@ -21,22 +20,30 @@ from sklearn.tree import DecisionTreeClassifier
 class FraudDetection:
 
     reader = None
-    mxn_to_usd_multiplier = 0.062
-    aud_to_usd_multiplier = 0.735
-    gbp_to_usd_multiplier = 1.550
-    nzd_to_usd_multiplier = 0.677
-    sek_to_usd_multiplier = 0.118
+    currencies = {'GBP': 1.550, 'AUD': 0.735, 'MXN': 0.062, 'SEK': 0.118, 'NZD': 0.677}
     list = []
 
     def read_csv(self):
         transactions = pd.read_csv("C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q4\\CS4035 Cyber Data Analytics\\Week 1 - "
-                                "Credit Card Fraud\\data_for_student_case.csv(1)\\data_for_student_case - Copy.csv")
+                                "Credit Card Fraud\\data_for_student_case.csv(1)\\data_for_student_case.csv")
         return transactions
 
-    def filter_csv(self):
+    # Preprocesses the dataset to get better results.
+    def preprocess_csv(self):
         csv = self.read_csv()
+
+        # Remove all "Refused" and changes "Settled" and "Chargeback" to "0" and "1" respectively
         csv = csv[csv.simple_journal != 'Refused']
         csv['simple_journal'] = csv['simple_journal'].replace('Settled', 0).replace('Chargeback', 1)
+        # print(csv.iloc[1])
+
+        # Change all 4, 5, 6 to 3
+        csv['cvcresponsecode'] = csv['cvcresponsecode'].replace(4, 3).replace(5, 3).replace(6, 3)
+
+        # Change all currencies to USD for better comparison between amount of different currencies.
+        for index, row in csv.iterrows():
+            csv.iat[index, 5] = math.ceil(row['amount'] * self.currencies[row['currencycode']])
+
         return csv
 
 
@@ -45,6 +52,7 @@ class FraudDetection:
 
     def run_classifier(self, training_features, training_target, validation_features, validation_target, test_features,
                        test_target, list_of_classifiers=None, label="Original"):
+        # Get list of classifiers
         list = []
         if list_of_classifiers is None:
             list_of_classifiers = self.get_classifiers()
@@ -303,11 +311,15 @@ class FraudDetection:
             for row in self.reader:
                 print(', '.join(row))
 
+    def imbalance_task(self):
+        self.smote()
+
+    def classification_task(self):
+        kfold = KFold(n_splits=10)
+
+
+
 if __name__ == "__main__":
     a = FraudDetection()
-    # a.load_data('C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q4\\CS4035 Cyber Data Analytics\\Week 1 - Credit Card '
-    #               'Fraud\\data_for_student_case.csv(1)\\data_for_student_case.csv')
-    # a.load_data_in_list()
-    # a.percentage_chargeback_per_country(4)
-    a.smote()
-    # a.hallo()
+    a.imbalance_task()
+    a.classification_task()
