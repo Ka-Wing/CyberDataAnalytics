@@ -48,7 +48,6 @@ class FraudDetection:
             if index == csv.shape[0]:
                 break
 
-            print(index)
             csv.iat[index, 5] = math.ceil(row['amount'] * self.currencies[row['currencycode']])
 
         return csv
