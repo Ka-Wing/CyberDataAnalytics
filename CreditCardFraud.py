@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split, KFold
 from sklearn.neighbors import KNeighborsClassifier
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
+import itertools
 import seaborn as sns
 import datetime
 
@@ -56,9 +57,10 @@ class FraudDetection:
             self.csv = self.preprocess_csv()
         transactions = self.csv
 
+        # all
         model_variables = ['issuercountrycode', 'txvariantcode', 'bin', 'amount', 'currencycode',
-                           'shoppercountrycode', 'shopperinteraction', 'simple_journal',
-                           'cardverificationcodesupplied', 'cvcresponsecode', 'accountcode']
+                           'shoppercountrycode', 'shopperinteraction', 'simple_journal', 'cvcresponsecode',
+                           'accountcode']
 
         # Transactions with only the relevant columns/columsn in model_variables
         transactions_data_relevant = transactions[model_variables]
@@ -74,31 +76,32 @@ class FraudDetection:
                        test_target, list_of_classifiers=None, label="Original"):
 
         list_roc = [] # List for false positive rate, true positve rate and auc.
-        list_scores = [] # List for accuracy and precision
+        list_scores = [] # List for accuracy and recall, TP, FP, FN and TN
 
         # Get list of classifiers
         if list_of_classifiers is None:
             list_of_classifiers = self.get_classifiers()
 
         for clf in list_of_classifiers:
-            print("Name = " + clf.__class__.__name__)
+            # print("Name = " + clf.__class__.__name__)
             clf.fit(training_features, training_target)
-            print(label)
+            # print(label)
             if not (validation_features is None or validation_target is None):
                 print('Validation Results')
                 print(clf.score(validation_features, validation_target))
                 print(recall_score(validation_target, clf.predict(validation_features)))
             print('\nTest Results')
-            precision = clf.score(test_features, test_target)
+            accuracy = clf.score(test_features, test_target)
             recall = recall_score(test_target, clf.predict(test_features))
-            print(precision)
+            print(accuracy)
             print(recall)
 
 
 
             actual = test_target
             predictions = clf.predict(test_features)
-            print(confusion_matrix(actual, predictions))
+            conf_matrix = confusion_matrix(actual, predictions)
+            print(conf_matrix)
 
             Y_score = clf.predict_proba(test_features)[:, 1]
             fpr, tpr, _ = roc_curve(test_target, Y_score)
@@ -106,13 +109,14 @@ class FraudDetection:
             roc_auc = auc(fpr, tpr)
 
             list_roc.append([fpr, tpr, roc_auc])
-            list_scores.append([precision, recall])
+            list_scores.append([accuracy, recall, conf_matrix[0][0], conf_matrix[0][1],
+                                conf_matrix[1][0], conf_matrix[1][1]])
 
 
         return list_roc, list_scores
 
 
-    def smote(self):
+    def imbalance_task(self):
         transactions = self.get_dataset()
 
 
@@ -132,7 +136,7 @@ class FraudDetection:
 
         # Smote
         print("Smoting")
-        sm = SMOTE(random_state=12)
+        sm = SMOTE()
         training_features_smoted, training_target_smoted = sm.fit_sample(training_features, training_target)
 
         # Undersample
@@ -143,7 +147,7 @@ class FraudDetection:
 
         # Smote Tomek
         print("Tomek Smoting")
-        smt = SMOTETomek(random_state=12)
+        smt = SMOTETomek()
         training_features_tomek, training_target_tomek = smt.fit_sample(training_features, training_target)
 
         print("Length dataset: " + str(row))
@@ -232,111 +236,23 @@ class FraudDetection:
         plt.show()
 
 
-    def load_data(self, path):
-        self.reader = csv.reader(open(path, 'rt', encoding="ascii"), delimiter=',', quotechar='|')
-
-    def load_data_in_list(self):
-        if self.reader is None:
+    def classification_task(self, white_box=True, black_box=False):
+        if white_box == black_box:
             return False
-        else:
-            for row in self.reader:
-                self.list.append(row)
 
 
-    def print_list(self):
-        if self.list == []:
-            return False
-        else:
-            i = 0
-            for row in self.reader:
-                print(row[6])
-                #print(', '.join(row))
-
-    def percentage_chargeback_per_country(self, row_number):
-        countries = []
-        amount = []
-        i = 0
-        for row in self.list:
-            if row[9] != "Refused":
-                if not row[row_number] in countries:
-                    countries.append(row[row_number])
-                    if row[9] == "Chargeback":
-                        amount.append([1, 1])
-                    elif row[9] == "Settled":
-                        amount.append([0, 1])
-                elif row[row_number] in countries:
-                    index = countries.index(row[row_number])
-                    list = amount[index]
-                    if row[9] == "Chargeback":
-                        list = [list[0] + 1, list[1] + 1]
-                    elif row[9] == "Settled":
-                        list = [list[0], list[1] + 1]
-                    amount[index] = list
-                    pass
-
-            i = i + 1
-            if i % 10000 == 0:
-                print(i)
-
-        if len(countries) != len(amount):
-            print("WRONG!")
-            return False
-        else:
-            with open("a.txt", "w") as file:
-                for i in range(len(countries)):
-                    file.write(countries[i] + " " + str(float(amount[i][0])/float(amount[i][1])))
-                    file.write("\n")
-
-    def changecurrency(self):
-        with open('changedcurrency.csv', 'w') as file:
-            file.write("txid,bookingdate,issuercountrycode,txvariantcode,bin,amount,currencycode,shoppercountrycode,"
-                       "shopperinteraction,simple_journal,cardverificationcodesupplied,cvcresponsecode,creationdate,"
-                       "accountcode,mail_id,ip_id,card_id")
-            file.write('\n')
-
-            if self.list == []:
-                return False
-            else:
-                for row in self.list:
-                    conversion = 0
-                    if row[6] == "SEK":
-                        conversion = float(row[5]) * self.sek_to_usd_multiplier
-                    elif row[6] == "NZD":
-                        conversion = float(row[5]) * self.nzd_to_usd_multiplier
-                    elif row[6] == "AUD":
-                        conversion = float(row[5]) * self.aud_to_usd_multiplier
-                    elif row[6] == "GBP":
-                        conversion = float(row[5]) * self.gbp_to_usd_multiplier
-                    elif row[6] == "MXN":
-                        conversion = float(row[5]) * self.mxn_to_usd_multiplier
-
-                    row[5] = str(math.floor(conversion))
-                    line = ', '.join(row)
-                    file.write(line)
-                    file.write('\n')
-
-    def print_data(self):
-        if self.reader is None:
-            return False
-        else:
-            i = 0
-            for row in self.reader:
-                print(', '.join(row))
-
-    def imbalance_task(self):
-        self.smote()
-
-    def classification_task(self):
         transactions = self.get_dataset()
-        print(transactions.shape[0])
         dataset_features = transactions.drop(['simple_journal'], axis=1)
         dataset_target = transactions['simple_journal']
-        kfold = KFold(n_splits=10)
-        print(kfold.get_n_splits(dataset_features, dataset_target))
+        kfold = KFold(n_splits=10, shuffle=True)
         i = 0
 
         list_accuracy = []
-        list_precision = []
+        list_recall = []
+        list_TP = []
+        list_FP = []
+        list_FN = []
+        list_TN = []
 
         for train_index, test_index in kfold.split(dataset_features, dataset_target):
             training_features = dataset_features.iloc[train_index]
@@ -344,28 +260,50 @@ class FraudDetection:
             training_target = dataset_target.iloc[train_index]
             test_target = dataset_target.iloc[test_index]
 
-            # Undersample
-            print("Undersampling")
-            rus = RandomUnderSampler(return_indices=True)
-            training_features_undersampled, training_target_undersampled, _ = rus.fit_sample(training_features,
+            # Smote
+            print("Smote")
+            sm = SMOTE(ratio=1.0, kind='regular')
+            training_features_smoted, training_target_smoted= sm.fit_sample(training_features,
                                                                                              training_target)
 
-            classifier = [LogisticRegression()]
-            _, scores = self.run_classifier(training_features_undersampled, training_target_undersampled, None, None,
+            classifier = []
+
+            if white_box:
+                classifier.append(DecisionTreeClassifier())
+
+            if black_box:
+                classifier.append(RandomForestClassifier())
+
+            _, scores = self.run_classifier(training_features_smoted, training_target_smoted, None, None,
                                             test_features, test_target, classifier, label="Whitebox classification")
             list_accuracy.append(scores[0][0])
-            list_precision.append(scores[0][1])
+            list_recall.append(scores[0][1])
+            list_TP.append(scores[0][2])
+            list_FP.append(scores[0][3])
+            list_FN.append(scores[0][4])
+            list_TN.append(scores[0][5])
 
         average_accuracy = sum(list_accuracy)/len(list_accuracy)
-        average_precision = sum(list_precision) / len(list_precision)
+        average_recall = sum(list_recall) / len(list_recall)
+        sum_TP = sum(list_TP)
+        sum_FP = sum(list_FP)
+        sum_FN = sum(list_FN)
+        sum_TN = sum(list_TN)
 
         print(average_accuracy)
-        print(average_precision)
+        print(average_recall)
+        print(sum_TP)
+        print(sum_FP)
+        print(sum_FN)
+        print(sum_TN)
 
 
 
 
 if __name__ == "__main__":
     a = FraudDetection()
-    # a.imbalance_task()
-    a.classification_task()
+
+    a.imbalance_task()
+
+    # One should be true and the other should be false.
+    a.classification_task(white_box=False, black_box=True)
