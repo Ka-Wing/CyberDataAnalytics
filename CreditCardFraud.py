@@ -59,7 +59,7 @@ class FraudDetection:
 
         # all
         model_variables = ['issuercountrycode', 'txvariantcode', 'bin', 'amount', 'currencycode',
-                           'shoppercountrycode', 'shopperinteraction', 'simple_journal', 'cvcresponsecode',
+                           'shoppercountrycode', 'simple_journal', 'cardverificationcodesupplied' , 'cvcresponsecode',
                            'accountcode']
 
         # Transactions with only the relevant columns/columsn in model_variables
@@ -260,21 +260,20 @@ class FraudDetection:
             training_target = dataset_target.iloc[train_index]
             test_target = dataset_target.iloc[test_index]
 
-            # Smote
-            print("Smote")
-            sm = SMOTE(ratio=1.0, kind='regular')
-            training_features_smoted, training_target_smoted= sm.fit_sample(training_features,
-                                                                                             training_target)
-
             classifier = []
 
             if white_box:
                 classifier.append(DecisionTreeClassifier())
 
             if black_box:
+                # Smote
+                print("Smote")
+                sm = SMOTE()
+                training_features, training_target = sm.fit_sample(training_features, training_target)
+
                 classifier.append(RandomForestClassifier())
 
-            _, scores = self.run_classifier(training_features_smoted, training_target_smoted, None, None,
+            _, scores = self.run_classifier(training_features, training_target, None, None,
                                             test_features, test_target, classifier, label="Whitebox classification")
             list_accuracy.append(scores[0][0])
             list_recall.append(scores[0][1])
