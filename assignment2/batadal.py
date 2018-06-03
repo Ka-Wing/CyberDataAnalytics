@@ -11,21 +11,31 @@ import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, normalize
 from sklearn.metrics import mean_squared_error
 from statsmodels.tsa.ar_model import AR
 from saxpy import SAX
 
 def plot():
     # read in the data to a pandas dataframe
-    signals = pd.read_csv('BATADAL_dataset03.csv')
-    signals2 = pd.read_csv('BATADAL_dataset04.csv')
+    signals = pd.read_csv('BATADAL_dataset03.csv', parse_dates = True, index_col='DATETIME')
     # plot the heatmap with correlations
-    #plt.subplots(figsize=(13,10))
-    #sns.heatmap(data=signals.corr(), xticklabels=True, yticklabels=True, linewidths=1.0, cbar = True, cmap = 'coolwarm')
-    
     plt.subplots(figsize=(13,10))
-    sns.heatmap(data=signals2.corr(), xticklabels=True, yticklabels=True, linewidths=1.0, cbar = True, cmap = 'coolwarm')
+    sns.heatmap(data=signals.corr(), xticklabels=True, yticklabels=True, linewidths=1.0, cbar = True, cmap = 'coolwarm')
+
+    # plot behavior of P_J280 and F_PU1
+    normalized_signals_1 = normalize(signals['P_J280'][:300].values.reshape(1, -1))
+    normalized_signals_2 = normalize(signals['F_PU1'][:300].values.reshape(1, -1))
+    sns.tsplot(data=normalized_signals_1, color="red")
+    sns.tsplot(data=normalized_signals_2)
+    
+    # plot behavior of P_J269 and F_PU2
+    normalized_signals_1 = normalize(signals['P_J269'][:300].values.reshape(1, -1))
+    normalized_signals_2 = normalize(signals['F_PU2'][:300].values.reshape(1, -1))
+    #normalized_signals_3 = normalize(signals['S_PU2'][:300].values.reshape(1, -1))
+    sns.tsplot(data=normalized_signals_1, color="red")
+    sns.tsplot(data=normalized_signals_2)
+    #sns.tsplot(data=normalized_signals_2, color="green")
 
 def predict():
     signals = pd.read_csv('BATADAL_dataset03.csv')
@@ -89,7 +99,7 @@ def discrete_models_task():
     
     sensor_data = signals[sensors]
     
-    # perform SAX
+    # perform SAX (check: https://github.com/nphoff/saxpy)
     s = SAX()
     # perform PAA on training data
     paa_sensors, original_indices = s.to_PAA(sensor_data)
@@ -98,7 +108,7 @@ def discrete_models_task():
     # convert PAA of training data to series of letters
     letters = s.alphabetize(normalized_paa_sensors)
     
-    print(sensor_data.head(5))
+    #print(sensor_data.head(5))
     print(paa_sensors)
     print(normalized_paa_sensors)
     print(original_indices)
@@ -106,6 +116,10 @@ def discrete_models_task():
     
     # plot discretization
     
+    # create sliding windows
+    s.sliding_window(letters, 7, 0.9)
+    
+    # use n-grams
     
     
 #plot()

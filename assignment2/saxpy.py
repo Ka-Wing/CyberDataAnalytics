@@ -137,7 +137,7 @@ class SAX(object):
         """
 
         number_rep = range(0,self.alphabetSize)
-        letters = [chr(x + self.aOffset) for x in number_rep]
+        letters = [str(x + self.aOffset) for x in number_rep]
         self.compareDict = {}
         for i in range(0, len(letters)):
             for j in range(0, len(letters)):
