@@ -4,6 +4,7 @@ import time
 
 from pandas.plotting import autocorrelation_plot
 from statsmodels.tsa.arima_model import ARIMA, ARMAResults
+from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 from statsmodels.tsa.stattools import acf, pacf
 from sklearn.decomposition import PCA
@@ -14,10 +15,16 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from pandas import DataFrame
 import math
+from assignment2.saxpy import SAX
 import seaborn as sns
 from matplotlib import pyplot
 from sklearn.metrics import recall_score, roc_curve, auc, confusion_matrix
 import warnings
+from tslearn.generators import random_walks
+from tslearn.preprocessing import TimeSeriesScalerMeanVariance
+from tslearn.piecewise import PiecewiseAggregateApproximation
+from tslearn.piecewise import SymbolicAggregateApproximation, OneD_SymbolicAggregateApproximation
+import numpy
 
 from statsmodels.tsa.stattools import adfuller
 
@@ -26,6 +33,7 @@ class batadal(object):
     batadal3 = None
     batadal4 = None
     batadaltest = None
+    sensors = None
 
     def parser(self, x):
             return pd.datetime.strptime(x, '%d/%m/%y %H')
@@ -37,6 +45,10 @@ class batadal(object):
                               date_parser=self.parser)
         self.batadaltest = pd.read_csv(batadaltest, header=0, parse_dates=[0], index_col=0, squeeze=True,
                               date_parser=self.parser)
+
+        self.sensors = ['L_T1', 'L_T2', 'L_T3', 'L_T4', 'L_T5', 'L_T6', 'L_T7', 'F_PU1', 'F_PU2', 'F_PU4', 'F_PU6', 'F_PU7',
+                   'F_PU8', 'F_PU10', 'F_PU11', 'F_V2', 'P_J280', 'P_J269', 'P_J300', 'P_J256', 'P_J289', 'P_J415',
+                   'P_J302', 'P_J306', 'P_J307', 'P_J317', 'P_J14', 'P_J422']
 
     def plots(self):
         signals = pd.read_csv("BATADAL_dataset03.csv")
@@ -228,18 +240,9 @@ class batadal(object):
 
 
     def arma(self):
-        sensors = ['L_T1', 'L_T2', 'L_T3', 'L_T4', 'L_T5', 'L_T6', 'L_T7', 'F_PU1', 'F_PU2', 'F_PU4', 'F_PU6', 'F_PU7',
-                   'F_PU8', 'F_PU10', 'F_PU11', 'F_V2', 'P_J280', 'P_J269', 'P_J300', 'P_J256', 'P_J289', 'P_J415',
-                   'P_J302', 'P_J306', 'P_J307', 'P_J317', 'P_J14', 'P_J422']
-
-        sensors = ['L_T1', 'L_T2', 'L_T3', 'L_T4', 'L_T5', 'L_T6', 'L_T7', 'F_PU1', 'F_PU2', 'F_PU4', 'F_PU6', 'F_PU7',
-                   'F_PU8', 'F_PU10', 'F_PU11', 'F_V2', 'P_J280', 'P_J269', 'P_J300', 'P_J256', 'P_J289', 'P_J415',
-                   'P_J302', 'P_J306', 'P_J307', 'P_J317', 'P_J14', 'P_J422']
-        #sensors = ['L_T2']
-
+        sensors = self.sensors
         signals = self.batadal3
 
-        # print(signals.iloc[0])
 
 
         for sensor in sensors:
@@ -307,9 +310,7 @@ class batadal(object):
                             continue
 
                         try:
-                            if True:
-                                model = ARIMA(signals2, order=order)
-                            elif(sensor == 'L_T1'):
+                            if(sensor == 'L_T1'):
                                 model = ARIMA(signals2, order=(11, 0, 3))
                             elif(sensor == 'L_T2'):
                                 model = ARIMA(signals2, order=(8, 0, 2))
@@ -492,16 +493,11 @@ class batadal(object):
             #break
 
 
-
+    # Augmented Dickey Fuller Test
     def dftest(self):
-        sensors = ['L_T1', 'L_T2', 'L_T3', 'L_T4', 'L_T5', 'L_T6', 'L_T7', 'F_PU1', 'F_PU2', 'F_PU4', 'F_PU6', 'F_PU7',
-                   'F_PU8', 'F_PU10', 'F_PU11', 'F_V2', 'P_J280', 'P_J269', 'P_J300', 'P_J256', 'P_J289', 'P_J415',
-                   'P_J302', 'P_J306', 'P_J307', 'P_J317', 'P_J14', 'P_J422']
+        sensors = self.sensors
+        signals = self.batadal3
 
-        nan = ['F_PU3', 'F_PU5', 'F_PU9']
-
-        signals = pd.read_csv("BATADAL_dataset03.csv", header=0, parse_dates=[0], index_col=0, squeeze=True,
-                              date_parser=self.parser)
 
         for sensor in sensors:
             print(sensor)
@@ -609,6 +605,139 @@ class batadal(object):
         test_pca = pca.transform(signals_test)
 
 
+    def p(self):
+        # Load the data
+        signals = self.batadal3
+
+        # Scale the data so that the columns have a zero mean.
+        scaled_training_set  = StandardScaler().fit_transform(signals)
+        print(scaled_training_set.shape[0], scaled_training_set.shape[1])
+
+        # Apply PCA
+        pca_training_set = PCA().fit_transform(scaled_training_set)
+        print(pca_training_set.shape[0], pca_training_set.shape[1])
+
+
+
+
+
+        exit()
+        pca_training_set = PCA().fit_transform(scaled_training_set)
+
+    def discrete_models_task(self, plot_alphabet=False):
+        sensors = self.sensors
+        signals = self.batadal3
+
+        signals = signals['L_T2']
+        w = 500
+        sax = SAX(wordSize=w, alphabetSize=8, epsilon=1e-6)
+        normalized_signals = sax.normalize(signals)
+        paa, _ = sax.to_PAA(normalized_signals)
+
+        alphabet = sax.alphabetize(paa)
+        print(len(alphabet))
+        print(type(alphabet))
+        print(alphabet)
+
+        _, ax = pyplot.subplots()
+        ax.set_color_cycle(['blue', 'blue', 'green'])
+        #sns.tsplot(signals, color="red")
+        sns.tsplot(normalized_signals, color="lightblue")
+        x, y = self.paa_plot(paa, signals.shape[0], w)
+        print("x = ", x)
+        print("y = ", y)
+        print(y)
+        # pyplot.plot(paa)
+
+        if plot_alphabet:
+            self.alphabet_plot(alphabet, x, y)
+
+        pyplot.plot(x, y)
+        pyplot.show()
+
+        sax.sliding_window()
+
+    # Plots the alphabet on the PAA line.
+    def alphabet_plot(self, alphabet, x, y):
+        j = 0
+
+        for i in range(len(x)):
+            if i % 2 != 0:
+                continue
+            xvalue = (x[i+1]-x[i])/2 + x[i]
+            yvalue = y[i] + 0.05
+            pyplot.text(xvalue, yvalue, alphabet[j])
+            j = j + 1
+
+    # Returns the correct PAA plot out of the PAA returned by the code of Qin Lin.
+    def paa_plot(self, data, n, w):
+        hallo = n/w
+        x = []
+        y = []
+        for i in range(0, w):
+            x.append(hallo*i)
+            x.append(hallo*(i+1))
+
+        for i in range(len(data)):
+            y.append(data[i])
+            y.append(data[i])
+
+        return x, y
+
+    def tslearnn(self):
+        numpy.random.seed(0)
+        # Generate a random walk time series
+        n_ts, sz, d = 1, 100, 1
+        dataset = random_walks(n_ts=n_ts, sz=sz, d=d)
+        dataset = pd.read_csv("BATADAL_dataset03.csv", header=0, parse_dates=[0], index_col=0, squeeze=True,
+                              date_parser=self.parser)
+        dataset = dataset['L_T1']
+        print(type(dataset))
+
+        scaler = TimeSeriesScalerMeanVariance(mu=0., std=1.)  # Rescale time series
+        dataset = scaler.fit_transform(dataset)
+
+        # PAA transform (and inverse transform) of the data
+        n_paa_segments = 11
+        paa = PiecewiseAggregateApproximation(n_segments=n_paa_segments)
+        paa_dataset_inv = paa.inverse_transform(paa.fit_transform(dataset))
+
+        # SAX transform
+        n_sax_symbols = 8
+        sax = SymbolicAggregateApproximation(n_segments=n_paa_segments, alphabet_size_avg=n_sax_symbols)
+        sax_dataset_inv = sax.inverse_transform(sax.fit_transform(dataset))
+
+        # 1d-SAX transform
+        n_sax_symbols_avg = 8
+        n_sax_symbols_slope = 8
+        one_d_sax = OneD_SymbolicAggregateApproximation(n_segments=n_paa_segments, alphabet_size_avg=n_sax_symbols_avg,
+                                                        alphabet_size_slope=n_sax_symbols_slope)
+        one_d_sax_dataset_inv = one_d_sax.inverse_transform(one_d_sax.fit_transform(dataset))
+
+        pyplot.figure()
+        pyplot.subplot(2, 2, 1)  # First, raw time series
+        pyplot.plot(dataset[0].ravel(), "b-")
+        pyplot.title("Raw time series")
+
+        pyplot.subplot(2, 2, 2)  # Second, PAA
+        pyplot.plot(dataset[0].ravel(), "b-", alpha=0.4)
+        pyplot.plot(paa_dataset_inv[0].ravel(), "b-")
+        pyplot.title("PAA")
+
+        pyplot.subplot(2, 2, 3)  # Then SAX
+        pyplot.plot(dataset[0].ravel(), "b-", alpha=0.4)
+        pyplot.plot(sax_dataset_inv[0].ravel(), "b-")
+        pyplot.title("SAX, %d symbols" % n_sax_symbols)
+
+        pyplot.subplot(2, 2, 4)  # Finally, 1d-SAX
+        pyplot.plot(dataset[0].ravel(), "b-", alpha=0.4)
+        pyplot.plot(one_d_sax_dataset_inv[0].ravel(), "b-")
+        pyplot.title("1d-SAX, %d symbols (%dx%d)" % (n_sax_symbols_avg * n_sax_symbols_slope,
+                                                  n_sax_symbols_avg,
+                                                  n_sax_symbols_slope))
+
+        pyplot.tight_layout()
+        pyplot.show()
 
 
 
@@ -618,13 +747,18 @@ if __name__ == "__main__":
     # Fill in the right path of the dataset.
     b = batadal("BATADAL_dataset03.csv", "BATADAL_dataset04.csv", "BATADAL_test_dataset.csv")
 
-
-    # create_csv()
-    # count()
-    b.arma()
+    # ARMA Task
+    # b.arma()
     # auto()
     # dftest()
+
+    # Discrete models task
+    b.discrete_models_task(plot_alphabet=False)
+    # b.tslearnn()
+
+    # PCA
     # payseae()
     # paysea()
     # b.water_level_prediction()
     # b.water_flow()
+    # b.p()
