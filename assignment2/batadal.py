@@ -19,6 +19,7 @@ from saxpy import SAX
 def plot():
     # read in the data to a pandas dataframe
     signals = pd.read_csv('BATADAL_dataset03.csv', parse_dates = True, index_col='DATETIME')
+    
     # plot the heatmap with correlations
     plt.subplots(figsize=(13,10))
     sns.heatmap(data=signals.corr(), xticklabels=True, yticklabels=True, linewidths=1.0, cbar = True, cmap = 'coolwarm')
@@ -97,27 +98,32 @@ def discrete_models_task():
     # read in the data to a pandas dataframe
     signals = pd.read_csv('BATADAL_dataset03.csv', parse_dates = True, index_col='DATETIME')
     
-    sensor_data = signals[sensors]
+    #sensor_data = signals[sensors]
     
     # perform SAX (check: https://github.com/nphoff/saxpy)
-    s = SAX()
+    s = SAX(8, 7, 1e-6)
+    # normalize the training data first
+    normalized_signals = s.normalize(signals)
     # perform PAA on training data
-    paa_sensors, original_indices = s.to_PAA(sensor_data)
+    paa_signals, original_indices = s.to_PAA(normalized_signals)
     # normalize
-    normalized_paa_sensors = s.normalize(paa_sensors)
+    #normalized_paa_signals = s.normalize(paa_signals)
     # convert PAA of training data to series of letters
-    letters = s.alphabetize(normalized_paa_sensors)
+    letters = s.alphabetize(paa_signals)
     
     #print(sensor_data.head(5))
-    print(paa_sensors)
-    print(normalized_paa_sensors)
+    print(normalized_signals)
+    print(paa_signals)
     print(original_indices)
     print(letters)
     
     # plot discretization
+    #sns.tsplot(data=normalized_signals)
+    sns.tsplot(data=paa_signals, color="red")
+    
     
     # create sliding windows
-    s.sliding_window(letters, 7, 0.9)
+    #s.sliding_window(letters, 7, 0.9)
     
     # use n-grams
     
