@@ -586,8 +586,7 @@ if __name__ == "__main__":
     # b.dftest() # Augmented Dickey Fuller Test
 
     # Discrete models task
-    # b.discrete_models_task(plot_alphabet=True, signal='L_T1', w=70, a=8) # parameter is for plotting the alphabet of
-    #  the graph.
+    # b.discrete_models_task(plot_alphabet=True, signal='L_T1', w=70, a=8)
 
     # PCA
     # b.pca_task()
