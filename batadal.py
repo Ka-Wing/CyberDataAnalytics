@@ -18,7 +18,7 @@ import math
 from assignment2.saxpy import SAX
 import seaborn as sns
 from matplotlib import pyplot
-from sklearn.metrics import recall_score, roc_curve, auc, confusion_matrix
+from sklearn.metrics import recall_score, roc_curve, auc, confusion_matrix, mean_squared_error
 import warnings
 from tslearn.generators import random_walks
 from tslearn.preprocessing import TimeSeriesScalerMeanVariance
@@ -238,135 +238,146 @@ class batadal(object):
             signals.to_csv("a/" + str(sensor) + ".csv", sep=',', index=False)
 
 
-
     def arma(self):
         sensors = self.sensors
         signals = self.batadal3
+        test = self.batadaltest
+        # These orders were found using the bruteforce method, and corresponds with the sensors.
+        orders = [(11, 0, 3),  # L_T1
+                  (11, 0, 12), # L_T2
+                  (3, 0, 4),#(17, 0, 18), # L_T3
+                  (18, 0, 13), # L_T4
+                  (11, 0, 17), # L_T5
+                  (18, 0, 15), # L_T6
+                  (18, 0, 13), # L_T7
+                  (18, 0, 3), # F_PU1
+                  (11, 0, 3), # F_PU2
+                  (18, 0, 17), # F_PU4
+                  (1, 0, 2), # F_PU6
+                  (12, 0, 13), # F_PU7
+                  (18, 0, 12), # F_PU8
+                  (18, 0, 11), # F_PU10
+                  (0, 0, 1), # F_PU11
+                  (15, 0, 10), # F_V2
+                  (18, 0, 2), # P_J280
+                  (18, 0, 3), # P_J269
+                  ]
+
+        for i in range(len(sensors)):
+            if sensors[i] != 'L_T3':
+                continue
+            signals2 = signals[[sensors[i]]]
+
+            # Plot signal
+            pyplot.plot(signals2)
+            pyplot.title("Data " + sensors[i])
+            pyplot.show()
+
+            # ACF
+            plot_acf(signals2)
+            pyplot.title("autocorrelation " + sensors[i])
+            pyplot.show()
+
+            # PACF
+            # plot_pacf(signals2)
+            # pyplot.title("partial autocorrelation " + sensors[i])
+            # pyplot.show()
+
+            # Fit model
+            model = ARIMA(signals2, order=orders[i])
+            model_fit = model.fit(disp=0)
 
 
+            residuals = DataFrame(model_fit.resid)
+            pyplot.title("Residuals " + sensors[i])
+            sns.tsplot(model_fit.resid)
+            pyplot.show()
+
+            residuals.plot()
+            pyplot.title("ARMA Fit Residual Error Line Plot " + sensors[i])
+            pyplot.show()
+            residuals.plot(kind='kde')
+            pyplot.title("ARMA Fit Residual Error Density Plot " + sensors[i])
+            pyplot.show()
+            print(residuals.describe())
+
+            predictions = []
+            history = []
+
+            test2 = test[[sensors[i]]]
+
+            history = signals2[sensors[i]].tolist()
+
+            for t in range(len(test2)):
+                if t < 5:
+                    history.append(test2.iloc[t])
+                    continue
+
+                model = ARIMA(history, order=orders[i])
+                model_fit = model.fit(disp=0)
+                output = model_fit.forecast()
+                yhat = output[0]
+                predictions.append(yhat)
+                obs = test2.iloc[t]
+                history.append(obs)
+                print(str(t) + '/' + str(len(test2)) +' predicted=%f, expected=%f' % (yhat, obs))
+            error = mean_squared_error(test, predictions)
+            print('Test MSE: %.3f' % error)
+            # plot
+            pyplot.plot(test)
+            pyplot.plot(predictions, color='red')
+            pyplot.show()
+
+
+
+            break
+
+
+    # Method to bruteforce the order. The workings of this algorithms is not that important, as this method is a tool.
+    def bruteforce_arma(self):
+        sensors = self.sensors
+        signals = self.batadal3
 
         for sensor in sensors:
             print(sensor)
             signals2 = signals[[sensor]]
-            #print(signals2.head())
-            #signals2.plot()
-            #pyplot.title(sensor)
-            #pyplot.get_current_fig_manager().window.showMaximized()
-            #pyplot.show()
-
-            p = 11
-            d = 0
-            q = 2
-
-            plot_acf(signals2)
-            aaseeef = acf(signals2)
-            for i in range(len(aaseeef)):
-                if aaseeef[i] < 0:
-                    p = i
-                    break
-
-            peeaaseeef = pacf(signals2)
-            for j in range(len(peeaaseeef)):
-
-                if peeaaseeef[j] < 0:
-                    q = j
-                    break
 
 
             P = Q = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
             D = [0, 1]
 
-            orders = []#(a, b, c) for a in P for b in D for c in Q]
-            print(len(orders))
+            # Make combination of each p, d and q. Then remove duplicates
+            orders = [(a, b, c) for a in P for b in D for c in Q]
             orders = list(set(orders))
-
-            print(len(orders))
-            print(orders)
-
-            #pyplot.title("autocorrelation")
-            #pyplot.show()
-
-            #plot_pacf(signals2, lags=100)
-            #pyplot.title("partial autocorrelation")
-            #pyplot.show()
 
             model = None
 
+            # These variables are used as final results.
             lowest = 9999999999999999
             lowest_order = (0,0,0)
 
-            print(time.ctime())
-
+            # Orders that has been tried already.
             tried = []
 
+
+            # Try al combinations up til 20 by increasing p, after three iterations of p without any lower AIC,
+            # then break.
             for pie in range(0, 20):
                 tries = 3
                 for pee in range(0, pie):
                     for kuu in range(0, pee):
+                        # Set order
                         order = (pee, 0, kuu)
+
+                        # See if order is already tried. Break if yes, continue if no.
                         if order not in tried:
                             tried.append(order)
                         else:
                             continue
 
+                        # Try to make the model and check if AIC is lower than the lowest seen up til now.
                         try:
-                            if(sensor == 'L_T1'):
-                                model = ARIMA(signals2, order=(11, 0, 3))
-                            elif(sensor == 'L_T2'):
-                                model = ARIMA(signals2, order=(8, 0, 2))
-                            elif (sensor == 'L_T3'):
-                                model = ARIMA(signals2, order=(3, 0, 4))
-                            elif (sensor == 'L_T4'):
-                                model = ARIMA(signals2, order=(6, 0, 2))
-                            elif (sensor == 'L_T5'):
-                                model = ARIMA(signals2, order=(4, 0, 3))
-                            elif (sensor == 'L_T6'):
-                                model = ARIMA(signals2, order=(2, 0, 4))
-                            elif (sensor == 'L_T7'):
-                                model = ARIMA(signals2, order=(2, 0, 4))
-                            elif (sensor == 'F_PI1'):
-                                model = ARIMA(signals2, order=(9, 0, 3))
-                            elif (sensor == 'F_PU2'):
-                                model = ARIMA(signals2, order=(10, 0, 3))
-                            elif (sensor == 'F_PU4'):
-                                model = ARIMA(signals2, order=(4, 0, 2))
-                            elif (sensor == 'F_PU6'):
-                                model = ARIMA(signals2, order=(1, 0, 2))
-                            elif (sensor == 'F_PU7'):
-                                model = ARIMA(signals2, order=(3, 0, 3))
-                            elif (sensor == 'F_PU8'):
-                                model = ARIMA(signals2, order=(4, 0, 3))
-                            elif (sensor == 'F_PU10'):
-                                model = ARIMA(signals2, order=(3, 0, 3))
-                            elif (sensor == 'F_PU11'):
-                                model = ARIMA(signals2, order=(1, 0, 1))
-                            elif (sensor == 'F_V2'):
-                                model = ARIMA(signals2, order=(5, 0, 3))
-                            elif (sensor == 'P_J280'):
-                                model = ARIMA(signals2, order=(2, 0, 9))
-                            elif (sensor == 'P_J269'):
-                                model = ARIMA(signals2, order=(9, 0, 3))
-                            elif (sensor == 'P_J300'):
-                                model = ARIMA(signals2, order=(6, 0, 2))
-                            elif (sensor == 'P_J256'):
-                                model = ARIMA(signals2, order=(4, 0, 3))
-                            elif (sensor == 'P_J289'):
-                                model = ARIMA(signals2, order=(6, 0, 2))
-                            elif (sensor == 'P_J415'):
-                                model = ARIMA(signals2, order=(3, 0, 3))
-                            elif (sensor == 'P_J302'):
-                                model = ARIMA(signals2, order=(5, 0, 3))
-                            elif (sensor == 'P_J306'):
-                                model = ARIMA(signals2, order=(4, 0, 3))
-                            elif (sensor == 'P_J307'):
-                                model = ARIMA(signals2, order=(5, 0, 3))
-                            elif (sensor == 'P_J317'):
-                                model = ARIMA(signals2, order=(6, 0, 3))
-                            elif (sensor == 'P_J422'):
-                                model = ARIMA(signals2, order=(6, 0, 2))
-                            else:
-                                model = ARIMA(signals2, order=o)
-
+                            model = ARIMA(signals2, order=order)
                             model_fit = model.fit(disp=0)
                             print(order, str(model_fit.aic))
                             if(model_fit.aic < lowest):
@@ -374,85 +385,28 @@ class batadal(object):
                                 lowest_order = order
                                 lowest = model_fit.aic
 
-
-                        #print(model_fit.summary())
                         except Exception as e:
                             print(str(e))
                             continue
                 tries = tries - 1
+                # Breaks if after three iteration no lower AIC is found.
                 if tries == 0:
                     break
 
+            # Try al combinations up til 20 by increasing q, after three iterations of q without any lower AIC,
+            # then break.
             for pie in range(0, 20):
                 tries = 3
                 for pee in range(0, pie):
                     for kuu in range(0, pee):
-                        order = (kuu, 0, pee)
+                        order = (kuu, 0, pee) # Note that only this line is different than the loop before.
                         if order not in tried:
                             tried.append(order)
                         else:
                             continue
 
                         try:
-                            if True:
-                                model = ARIMA(signals2, order=order)
-                            elif (sensor == 'L_T1'):
-                                model = ARIMA(signals2, order=(11, 0, 3))
-                            elif (sensor == 'L_T2'):
-                                model = ARIMA(signals2, order=(8, 0, 2))
-                            elif (sensor == 'L_T3'):
-                                model = ARIMA(signals2, order=(3, 0, 4))
-                            elif (sensor == 'L_T4'):
-                                model = ARIMA(signals2, order=(6, 0, 2))
-                            elif (sensor == 'L_T5'):
-                                model = ARIMA(signals2, order=(4, 0, 3))
-                            elif (sensor == 'L_T6'):
-                                model = ARIMA(signals2, order=(2, 0, 4))
-                            elif (sensor == 'L_T7'):
-                                model = ARIMA(signals2, order=(2, 0, 4))
-                            elif (sensor == 'F_PI1'):
-                                model = ARIMA(signals2, order=(9, 0, 3))
-                            elif (sensor == 'F_PU2'):
-                                model = ARIMA(signals2, order=(10, 0, 3))
-                            elif (sensor == 'F_PU4'):
-                                model = ARIMA(signals2, order=(4, 0, 2))
-                            elif (sensor == 'F_PU6'):
-                                model = ARIMA(signals2, order=(1, 0, 2))
-                            elif (sensor == 'F_PU7'):
-                                model = ARIMA(signals2, order=(3, 0, 3))
-                            elif (sensor == 'F_PU8'):
-                                model = ARIMA(signals2, order=(4, 0, 3))
-                            elif (sensor == 'F_PU10'):
-                                model = ARIMA(signals2, order=(3, 0, 3))
-                            elif (sensor == 'F_PU11'):
-                                model = ARIMA(signals2, order=(1, 0, 1))
-                            elif (sensor == 'F_V2'):
-                                model = ARIMA(signals2, order=(5, 0, 3))
-                            elif (sensor == 'P_J280'):
-                                model = ARIMA(signals2, order=(2, 0, 9))
-                            elif (sensor == 'P_J269'):
-                                model = ARIMA(signals2, order=(9, 0, 3))
-                            elif (sensor == 'P_J300'):
-                                model = ARIMA(signals2, order=(6, 0, 2))
-                            elif (sensor == 'P_J256'):
-                                model = ARIMA(signals2, order=(4, 0, 3))
-                            elif (sensor == 'P_J289'):
-                                model = ARIMA(signals2, order=(6, 0, 2))
-                            elif (sensor == 'P_J415'):
-                                model = ARIMA(signals2, order=(3, 0, 3))
-                            elif (sensor == 'P_J302'):
-                                model = ARIMA(signals2, order=(5, 0, 3))
-                            elif (sensor == 'P_J306'):
-                                model = ARIMA(signals2, order=(4, 0, 3))
-                            elif (sensor == 'P_J307'):
-                                model = ARIMA(signals2, order=(5, 0, 3))
-                            elif (sensor == 'P_J317'):
-                                model = ARIMA(signals2, order=(6, 0, 3))
-                            elif (sensor == 'P_J422'):
-                                model = ARIMA(signals2, order=(6, 0, 2))
-                            else:
-                                model = ARIMA(signals2, order=o)
-
+                            model = ARIMA(signals2, order=order)
                             model_fit = model.fit(disp=0)
                             print(order, model_fit.aic)
                             if (model_fit.aic < lowest):
@@ -461,7 +415,6 @@ class batadal(object):
                                 lowest = model_fit.aic
 
 
-                        # print(model_fit.summary())
                         except Exception as e:
                             print(str(e))
                             pass
@@ -472,25 +425,6 @@ class batadal(object):
             print("lowest_aic: ", lowest)
             print("lowest_order: ", lowest_order)
 
-            continue
-
-            residuals = DataFrame(model_fit.resid)
-            pyplot.title("Hello")
-            sns.tsplot(model_fit.resid)
-            pyplot.show()
-
-            residuals.plot()
-            pyplot.title("ARMA Fit Residual Error Line Plot")
-            pyplot.show()
-            residuals.plot(kind='kde')
-            pyplot.title("ARMA Fit Residual Error Density Plot")
-            pyplot.show()
-            print(residuals.describe())
-
-            print("AIC: ", ARMAResults.aic(model_fit))
-            print("BIC: ", ARMAResults.bic(model_fit))
-
-            #break
 
 
     # Augmented Dickey Fuller Test
@@ -506,8 +440,8 @@ class batadal(object):
                 result = adfuller(signals2)
                 print('ADF Statistic: %f' % result[0])
                 print('p-value: %f' % result[1])
-                print('lags: %f' % result[2])
-                print('observations: %f' % result[3])
+                print('Lags: %f' % result[2])
+                print('Observations: %f' % result[3])
                 print('Critical Values:')
                 for key, value in result[4].items():
                     print('\t%s: %.3f' % (key, value))
@@ -655,7 +589,7 @@ class batadal(object):
         pyplot.plot(x, y)
         pyplot.show()
 
-        sax.sliding_window()
+        sax.windo
 
     # Plots the alphabet on the PAA line.
     def alphabet_plot(self, alphabet, x, y):
@@ -748,12 +682,13 @@ if __name__ == "__main__":
     b = batadal("BATADAL_dataset03.csv", "BATADAL_dataset04.csv", "BATADAL_test_dataset.csv")
 
     # ARMA Task
-    # b.arma()
+    # b.bruteforce_arma()
+    b.arma()
     # auto()
-    # dftest()
+    # def dftest(self): # Augmented Dickey Fuller Test
 
     # Discrete models task
-    b.discrete_models_task(plot_alphabet=False)
+    # b.discrete_models_task(plot_alphabet=False)
     # b.tslearnn()
 
     # PCA
