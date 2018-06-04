@@ -101,6 +101,8 @@ class FraudDetection:
             actual = test_target
             predictions = clf.predict(test_features)
             conf_matrix = confusion_matrix(actual, predictions)
+            tn, fp, fn, tp = confusion_matrix(actual, predictions).ravel()
+            print(tn, fp, fn, tp)
             print(conf_matrix)
 
             Y_score = clf.predict_proba(test_features)[:, 1]

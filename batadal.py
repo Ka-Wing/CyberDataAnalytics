@@ -1,30 +1,18 @@
-import itertools
 import pandas as pd
-import time
 
-from pandas.plotting import autocorrelation_plot
-from statsmodels.tsa.arima_model import ARIMA, ARMAResults
-from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeClassifier
-from statsmodels.tsa.stattools import acf, pacf
+from statsmodels.tsa.arima_model import ARIMA
+from sklearn.preprocessing import StandardScaler, normalize
+from statsmodels.tsa.stattools import pacf
 from sklearn.decomposition import PCA
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from statsmodels.graphics.tsaplots import plot_acf
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.linear_model import LogisticRegression
 from pandas import DataFrame
-import math
 from assignment2.saxpy import SAX
 import seaborn as sns
 from matplotlib import pyplot
 import matplotlib.pyplot as plt
-from sklearn.metrics import recall_score, roc_curve, auc, confusion_matrix, mean_squared_error
+from sklearn.metrics import mean_squared_error
 import warnings
-from tslearn.generators import random_walks
-from tslearn.preprocessing import TimeSeriesScalerMeanVariance
-from tslearn.piecewise import PiecewiseAggregateApproximation
-from tslearn.piecewise import SymbolicAggregateApproximation, OneD_SymbolicAggregateApproximation
 import numpy as np
 
 from statsmodels.tsa.stattools import adfuller
@@ -150,7 +138,7 @@ class batadal(object):
 
 
 
-    def arma(self):
+    def arma(self, signal='L_T1'):
         sensors = self.sensors
         signals = self.batadal3
         test = self.batadaltest
@@ -186,7 +174,7 @@ class batadal(object):
                  ]
 
         for i in range(len(sensors)):
-            if sensors[i] != 'L_T7':
+            if sensors[i] != signal:
                 continue
             signals2 = signals[[sensors[i]]]
 
@@ -266,7 +254,6 @@ class batadal(object):
             break
 
 
-
     # Augmented Dickey Fuller Test
     def dftest(self):
         sensors = self.sensors
@@ -290,36 +277,38 @@ class batadal(object):
             print("\n\n")
 
     # Plotting the SAX/PAA
-    def discrete_models_task(self, plot_alphabet=False):
+    def discrete_models_task(self, plot_alphabet=False, signal='L_T1', w=100, a=8):
         signals = self.batadal3
 
-        signals = signals['L_T2']
-        w = 500
-        sax = SAX(wordSize=w, alphabetSize=8, epsilon=1e-6)
+        signals = signals[signal]
+        sax = SAX(wordSize=w, alphabetSize=a, epsilon=1e-6)
         normalized_signals = sax.normalize(signals)
         paa, _ = sax.to_PAA(normalized_signals)
 
         alphabet = sax.alphabetize(paa)
-        print(len(alphabet))
-        print(type(alphabet))
-        print(alphabet)
+        alphabet_string = self._numbers_to_letter(alphabet)
+        print(alphabet_string)
 
         _, ax = pyplot.subplots()
         ax.set_color_cycle(['blue', 'blue', 'green'])
         #sns.tsplot(signals, color="red")
         sns.tsplot(normalized_signals, color="lightblue")
         x, y = self._paa_plot(paa, signals.shape[0], w)
-        print("x = ", x)
-        print("y = ", y)
-        print(y)
         # pyplot.plot(paa)
 
         if plot_alphabet:
-            self._alphabet_plot(alphabet, x, y)
+            self._alphabet_plot(alphabet_string, x, y)
 
         pyplot.plot(x, y)
         pyplot.show()
 
+    def _numbers_to_letter(self, alphabet_string):
+        alphabet = "abcdefghijklmnopqrstuvwxyz"
+        string = ""
+        for i in alphabet_string:
+            number = int(i)
+            string += alphabet[number]
+        return string
 
     # Plots the alphabet on the PAA line.
     def _alphabet_plot(self, alphabet, x, y):
@@ -586,21 +575,22 @@ if __name__ == "__main__":
     warnings.simplefilter(action='ignore', category=FutureWarning)
 
     # Fill in the right path of the dataset.
-    b = batadal("BATADAL_dataset03.csv", "BATADAL_dataset04.csv", "BATADAL_test_dataset.csv", "BATADAL_test_dataset_new.csv")
+    b = batadal("BATADAL_dataset03.csv", "BATADAL_dataset04.csv", "BATADAL_test_dataset.csv", "BATADAL_test_dataset new.csv")
 
-    #Familirization Task
-    #b.plots()
+    # Familirization Task
+    # b.plots()
     # b.water_level_prediction()
 
     # ARMA Task
-    # b.arma() # This method plots the (p)acf and other graphs. Later, the order was added after looking at the graphs.
-    # b.dftest(self): # Augmented Dickey Fuller Test
+    # b.arma(signal='L_T1') # Method that makes an ARIMA model.
+    # b.dftest() # Augmented Dickey Fuller Test
 
     # Discrete models task
-    # b.discrete_models_task(plot_alphabet=True) # parameter is for plotting the alphabet of the graph.
+    # b.discrete_models_task(plot_alphabet=True, signal='L_T1', w=70, a=8) # parameter is for plotting the alphabet of
+    #  the graph.
 
     # PCA
-    #b.pca_task()
+    # b.pca_task()
     
-    #Comparison task: PCA method
-    b.pca_for_comparison_task()
+    # Comparison task: PCA method
+    # b.pca_for_comparison_task()
