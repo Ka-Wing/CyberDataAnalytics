@@ -127,7 +127,7 @@ class batadal(object):
         pca2 = PCA(n_components=10)
         pca2.fit(training)
         
-        # apply magic from the paper "Diagnosing Network-Wide Traffic Anomalies"
+        # apply magic from the paper "Diagnosing Network-Wide Traffic Anomalies" (page 223)
         components = pca2.components_
         P = np.transpose(components)
         P_T = components
@@ -145,18 +145,16 @@ class batadal(object):
         spe = np.zeros(y.shape[0])
         for i in range(y.shape[0]):
             spe[i] = np.sum(np.square(np.subtract(np.transpose(y_residual)[i], y)[i]))
-        
-        print("spe: ", spe)
-        print("spe.shape: ", spe.shape)
-        print("max spe: ", np.max(spe))
-        print("min spe: ", np.min(spe))
 
+        # plot to determine threshold
         plt.hist(spe, bins="auto")
         plt.xlim(0, 100)
         plt.show()
         
-        #set threshold based on the plot on 30 and detect anomalies in the testing data
+        # set threshold based on the plot on 30 and detect anomalies in the testing data
         threshold = 30
+        
+        # project testing data to the anomalous subspace
         y_residual2 = np.matmul(C_anomaly, np.transpose(transformed_testing))
         
         # calculate SPE (testing data)
@@ -164,17 +162,23 @@ class batadal(object):
         for i in range(transformed_testing.shape[0]):
             spe2[i] = np.sum(np.square(np.subtract(np.transpose(y_residual2)[i], transformed_testing)[i]))
         
-        print("spe2: ", spe2)
-        print("spe2.shape: ", spe2.shape)
-        print("max spe2: ", np.max(spe2))
-        print("min spe2: ", np.min(spe2))
-        
+        # determine what data is anomalous
         anomalous = np.zeros(transformed_testing.shape[0])
         for i in range(transformed_testing.shape[0]):
+            # when spe > threshold then classify as anomalous
             if spe2[i] > threshold:
                 anomalous[i] = 1
                 
-        # evaluate
+        # plot the anomalous datapoints in the testing set as classified
+        plt.plot(anomalous)
+        plt.show()
+        
+        # plot the spe of the testing set
+        plt.plot(spe2)
+        plt.show()
+                
+        # compute true negatives, true positives, false negatives, true positives,
+        # and preicison and recall
         tn = 0
         fp = 0
         fn = 0
