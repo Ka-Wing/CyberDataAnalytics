@@ -1,20 +1,20 @@
-import pandas as pd
-from statsmodels.tsa.arima_model import ARIMA
-from sklearn.preprocessing import StandardScaler, normalize
-from statsmodels.tsa.stattools import pacf
-from sklearn.decomposition import PCA
-from statsmodels.graphics.tsaplots import plot_acf
-from sklearn.tree import DecisionTreeRegressor
-from pandas import DataFrame
-from assignment2.saxpy import SAX
-import seaborn as sns
-from matplotlib import pyplot
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_squared_error
-import warnings
 import numpy as np
+import pandas as pd
+import seaborn as sns
+import warnings
+from matplotlib import pyplot
+from pandas import DataFrame
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.tsa.arima_model import ARIMA
+from statsmodels.tsa.stattools import pacf, adfuller
+from sklearn.decomposition import PCA
+from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import StandardScaler, normalize
+from sklearn.tree import DecisionTreeRegressor
+from assignment2.saxpy import SAX
 
-from statsmodels.tsa.stattools import adfuller
+
 
 class batadal(object):
 
