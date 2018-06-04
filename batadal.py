@@ -1,5 +1,4 @@
 import pandas as pd
-
 from statsmodels.tsa.arima_model import ARIMA
 from sklearn.preprocessing import StandardScaler, normalize
 from statsmodels.tsa.stattools import pacf
@@ -569,15 +568,14 @@ class batadal(object):
         print("precision: ", tp/(tp+fp))
         print("recall: ", tp/(tp+fn))
 
-
-
 if __name__ == "__main__":
     warnings.simplefilter(action='ignore', category=FutureWarning)
-
+    
+    # Please use the datasets we provided.
     # Fill in the right path of the dataset.
-    b = batadal("BATADAL_dataset03.csv", "BATADAL_dataset04.csv", "BATADAL_test_dataset.csv", "BATADAL_test_dataset new.csv")
+    b = batadal("BATADAL_dataset03.csv", "BATADAL_dataset04.csv", "BATADAL_test_dataset.csv", "BATADAL_test_dataset_new.csv")
 
-    # Familirization Task
+    # Familiarization Task
     # b.plots()
     # b.water_level_prediction()
 
