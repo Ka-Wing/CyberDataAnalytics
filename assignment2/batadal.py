@@ -6,6 +6,7 @@ Created on Thu May 24 14:00:28 2018
 @author: smto
 """
 
+import warnings
 import pandas as pd
 import seaborn as sns
 import numpy as np
@@ -80,17 +81,14 @@ class batadal(object):
         print("mse = " + error)
         
         #plot results
-        pyplot.plot(testing)
-        pyplot.plot(predictions, color='red')
-        pyplot.show()
+        plt.plot(testing)
+        plt.plot(predictions, color="red")
+        plt.show()
     
     def pca_task(self):
         # read in the data to a pandas dataframe
         signals = pd.read_csv('BATADAL_dataset03.csv', parse_dates = True, index_col='DATETIME')
         signals2 = pd.read_csv('BATADAL_dataset04.csv', parse_dates = True, index_col='DATETIME')
-
-        print(signals.shape)
-        print(signals2.shape)
         
         labels = signals2[' ATT_FLAG']
         
@@ -98,7 +96,7 @@ class batadal(object):
         signals = signals.drop('ATT_FLAG', axis=1)
         signals2 = signals2.drop(' ATT_FLAG', axis=1)
         
-        # standardize the data
+        # standardize the data to have zero mean and unit variance
         scaler1 = StandardScaler()
         scaler1.fit(signals)
         training = scaler1.transform(signals)
@@ -107,9 +105,12 @@ class batadal(object):
         scaler2.fit(signals2)
         testing = scaler2.transform(signals2)
         
-        # perform pca to determine the principle components
+        # perform pca to determine the normal and anomalous subspace
         pca = PCA()
         pca.fit(training)
+        transformed_training = pca.transform(training)
+        transformed_testing = pca.transform(testing)
+
         # print cumulative variance
         print(pca.explained_variance_ratio_.cumsum())
         #output:
@@ -122,19 +123,78 @@ class batadal(object):
         # 1.         1.         1.         1.         1.         1.
         # 1.        ]
         
-        # we select n_components=10, as this would give us 90% variance which is decent
-        pca = PCA(n_components=10)
-        pca.fit(training)
-        # 
-        transform_training = pca.transform(training)
-        transform_testing = pca.transform(testing)
+        # we select n_components=10 for the normal subspace, as this would give us 90% variance which is decent
+        pca2 = PCA(n_components=10)
+        pca2.fit(training)
         
-        #components = pca.components_
+        # apply magic from the paper "Diagnosing Network-Wide Traffic Anomalies"
+        components = pca2.components_
+        P = np.transpose(components)
+        P_T = components
+        I = np.identity(43)
         
-        #print(components.shape)
-        #print(np.matmul(transform_training, components).shape)
-        #print(np.matmul(transform_testing, components).shape)
+        C = np.matmul(P, P_T)
+        C_anomaly = I - C
         
+        y = transformed_training
+        
+        # project training data to the anomalous subspace
+        y_residual = np.matmul(C_anomaly, np.transpose(y))
+        
+        # calculate SPE (training data)        
+        spe = np.zeros(y.shape[0])
+        for i in range(y.shape[0]):
+            spe[i] = np.sum(np.square(np.subtract(np.transpose(y_residual)[i], y)[i]))
+        
+        print("spe: ", spe)
+        print("spe.shape: ", spe.shape)
+        print("max spe: ", np.max(spe))
+        print("min spe: ", np.min(spe))
+
+        plt.hist(spe, bins="auto")
+        plt.xlim(0, 100)
+        plt.show()
+        
+        #set threshold based on the plot on 30 and detect anomalies in the testing data
+        threshold = 30
+        y_residual2 = np.matmul(C_anomaly, np.transpose(transformed_testing))
+        
+        # calculate SPE (testing data)
+        spe2 = np.zeros(transformed_testing.shape[0])
+        for i in range(transformed_testing.shape[0]):
+            spe2[i] = np.sum(np.square(np.subtract(np.transpose(y_residual2)[i], transformed_testing)[i]))
+        
+        print("spe2: ", spe2)
+        print("spe2.shape: ", spe2.shape)
+        print("max spe2: ", np.max(spe2))
+        print("min spe2: ", np.min(spe2))
+        
+        anomalous = np.zeros(transformed_testing.shape[0])
+        for i in range(transformed_testing.shape[0]):
+            if spe2[i] > threshold:
+                anomalous[i] = 1
+                
+        # evaluate
+        tn = 0
+        fp = 0
+        fn = 0
+        tp = 0
+        for i in range(transformed_testing.shape[0]):
+            if labels[i] == -999 and anomalous[i] == 0:
+                tn = tn + 1
+            if labels[i] == -999 and anomalous[i] == 1:
+                fp = fp + 1
+            if labels[i] == 1 and anomalous[i] == 0:
+                fn = fn + 1
+            if labels[i] == 1 and anomalous[i] == 1:
+                tp = tp + 1
+                
+        print("tn: ", tn)
+        print("fp: ", fp)
+        print("fn: ", fn)
+        print("tp: ", tp)
+        print("precision: ", tp/(tp+fp))
+        print("recall: ", tp/(tp+fn))
         
     def discrete_models_task(self):
         # read in the data to a pandas dataframe
