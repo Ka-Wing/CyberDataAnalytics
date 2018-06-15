@@ -117,13 +117,10 @@ class sampling_task():
         return mws.get_dataframe()
 
 
-
-
-
-
 if __name__ == "__main__":
     s = sampling_task()
-    s.load_df()
+    s.load_df()    
     df = s.minwise_sampling(6)
+    print(df)
     # df.to_csv('mws_sample.csv', sep=',')
 
