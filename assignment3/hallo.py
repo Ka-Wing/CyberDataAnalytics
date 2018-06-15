@@ -1,5 +1,36 @@
 import pandas as pd
 import random
+import numpy as np
+
+class CountMinSketch():
+    def __init__(self, delta, epsilon):
+        self.w = int(np.ceil(2/epsilon))
+        self.d = int(np.ceil(np.log(1/delta)))
+        self.count_array = np.zeros(self.d, self.w)
+        self.hash_functions = []
+        
+        for i in range(0, self.d):
+            self.hash_functions.append(self.pairwise_indep_hash())
+        
+    # returns a hash function from a family of pairwise independent hash functions
+    def pairwise_indep_hash(self):
+        # the formula: h(x) = ((ax+b) % p) % m with p = prim;, a > 0; a, b < p
+        p = pow(2, 61) - 1 #some big random prime
+        a = random.randrange(0, p)
+        b = random.randrange(0, p)
+        
+        # returns a hash function
+        return lambda x: ((a * x + b) % p) % self.w
+        
+    # updates the counter array
+    def update(self, ip):
+        #[i, h_i(element)]
+        pass
+    
+    # estimates the number of occurrences of ip
+    def estimate(self, ip):
+        # min(h_1(item), h_2(item), ...) = the estimate
+        pass
 
 
 class MinWiseSampling():
