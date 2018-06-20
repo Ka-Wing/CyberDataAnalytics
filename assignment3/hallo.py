@@ -14,6 +14,7 @@ class CountMinSketch():
     def __init__(self, delta, epsilon):
         self.w = int(np.ceil(2/epsilon))
         self.d = int(np.ceil(np.log(1/delta)))
+
         self.count_array = np.zeros((self.d, self.w))
         self.hash_functions = []
 
@@ -24,7 +25,7 @@ class CountMinSketch():
 
         for i in range(0, self.d):
             self.hash_functions.append(self.pairwise_indep_hash())
-
+       
     # returns a hash function from a family of pairwise independent hash functions
     def pairwise_indep_hash(self):
         # the formula: h(x) = ((ax+b) % p) % m with p = prim;, a > 0; a, b < p
@@ -64,7 +65,6 @@ class CountMinSketch():
                 minimum = a
 
         return minimum
-
 
 
 class MinWiseSampling():
