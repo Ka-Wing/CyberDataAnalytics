@@ -14,6 +14,82 @@ import time
 from assignment3.CountMin import Sketch
 
 
+class task():
+    df = None
+
+    def load_df(self, fileName):
+        self.df = pd.read_csv(fileName)
+
+    def preprocess(self, input="", output="", list_of_ips=[], task=""):
+        dataframe_list = []
+        headers = ['date', 'flow start', 'durat', 'prot', 'src_ip', 'src_port', 'dst_ip', 'dst_port', 'flags', 'tos',
+                   'packets', 'bytes', 'flows', 'label']
+
+        with open(input, "r") as file:
+            row_counter = 0
+            lines = file.readlines()
+            for line in lines:
+                if row_counter == 0:
+                    row_counter = row_counter + 1
+                else:
+                    dataframe_list.append(self.__parse_line(line))
+
+            self.df = pd.DataFrame(dataframe_list, columns=headers)
+            self.df = self.df[(self.df['src_ip'].isin(list_of_ips)) | (self.df['dst_ip'].isin(list_of_ips))]
+
+            if(task=="sampling"):
+                self.df['ip'] = self.df['src_ip'].map(str) + self.df['dst_ip']
+                self.df['ip'] = self.df['ip'].map(lambda x: x.replace(list_of_ips[0], ""))
+            elif(task=="discretization"):
+                self.df = self.df[self.df['label'] != "Background"]
+
+            self.df.to_csv(output, sep=',', index=False)
+
+    # Parsing the line.
+    def __parse_line(self, line):
+        # First replace all double tabs to one tabs.
+        line = line.replace('\t\t', '\t')
+        line = line.replace('\t', " ")
+
+        # Split on space
+        line = line.split(' ')
+
+        try:
+            date = line[0]
+            flow_start = line[1]
+            duration = line[2]
+            protocol = line[3]
+            src_ip_port = line[4].split(':')
+            src_ip = src_ip_port[0]
+
+            # If there is no port given.
+            src_port = "NA"
+            if len(src_ip_port) == 2:
+                src_port = src_ip_port[1]
+
+            dst_ip_port = line[6].split(':')
+            dst_ip = dst_ip_port[0]
+
+            # If there is no port given.
+            dst_port = "NA"
+            if len(dst_ip_port) == 2:
+                dst_port = dst_ip_port[1]
+
+            flags = line[7]
+            tos = line[8]
+            packets = line[9]
+            bytes = line[10]
+            flows = line[11]
+            label = line[12].replace('\n', '')
+        except Exception as e:
+            print(e)
+            print(line)
+            exit(0)
+
+        return [date, flow_start, duration, protocol, src_ip, src_port, dst_ip, dst_port, flags, tos, packets, bytes, \
+                flows, label]
+
+
 class CountMinSketch():
     def __init__(self, delta, epsilon):
         self.w = int(np.ceil(2 / epsilon))
@@ -108,14 +184,13 @@ class MinWiseSampling():
         return df
 
 
-class sketching_task():
-    df = None
-    # top ten most frequent in descending order
+class sketching_task(task):
+    # Top ten most frequent in descending order
     ip_addresses = ["208.88.186.6", "78.175.28.225", "82.113.63.230", "195.168.45.2", "82.150.185.24",
                     "213.137.179.195", "62.180.140.208", "81.208.118.74", "88.255.232.197", "62.168.4.186"]
 
-    def load_df(self, fileName):
-        self.df = pd.read_csv(fileName)
+    def __init__(self, fileName):
+        self. load_df(fileName)
 
     def cmsketch(self, delta=0.01, epsilon=0.0000001):
         cms = CountMinSketch(delta, epsilon)
@@ -129,9 +204,7 @@ class sketching_task():
             print(ip + ":", int(cms.estimate(ip)))
 
 
-class sampling_task():
-    df = None
-
+class sampling_task(task):
     # top ten most frequent in descending order
     ip_addresses = ["208.88.186.6", "78.175.28.225", "82.113.63.230", "195.168.45.2", "82.150.185.24",
                     "213.137.179.195", "62.180.140.208", "81.208.118.74", "88.255.232.197", "62.168.4.186"]
@@ -148,6 +221,9 @@ class sampling_task():
                       "88.255.232.197": 0.129860126,
                       "62.168.4.186": 0.130187917}
 
+    def __init__(self, fileName):
+        self.load_df(fileName)
+
     # Get all file names that is generated the minwise sampling.
     def __get_all_file_names(self, path="./mws/20"):
         return [f for f in listdir(path) if isfile(join(path, f))]
@@ -161,76 +237,6 @@ class sampling_task():
     #         df = pd.read_csv(file)
     #         print(df.ip.value_counts())
     #         print(df.shape[0])
-
-    # Parsing the line.
-    def __parse_line(self, line):
-        # First replace all double tabs to one tabs.
-        line = line.replace('\t\t', '\t')
-        line = line.replace('\t', " ")
-
-        # Split on space
-        line = line.split(' ')
-
-        try:
-            date = line[0]
-            flow_start = line[1]
-            duration = line[2]
-            protocol = line[3]
-            src_ip_port = line[4].split(':')
-            src_ip = src_ip_port[0]
-
-            # If there is no port given.
-            src_port = "NA"
-            if len(src_ip_port) == 2:
-                src_port = src_ip_port[1]
-
-            dst_ip_port = line[6].split(':')
-            dst_ip = dst_ip_port[0]
-
-            # If there is no port given.
-            dst_port = "NA"
-            if len(dst_ip_port) == 2:
-                dst_port = dst_ip_port[1]
-
-            flags = line[7]
-            tos = line[8]
-            packets = line[9]
-            bytes = line[10]
-            flows = line[11]
-            label = line[12].replace('\n', '')
-        except Exception as e:
-            print(e)
-            print(line)
-            exit(0)
-
-        return [date, flow_start, duration, protocol, src_ip, src_port, dst_ip, dst_port, flags, tos, packets, bytes, \
-                flows, label]
-
-    def load_df(self, fileName):
-        self.df = pd.read_csv(fileName)
-
-    def preprocess(self, input="", output=""):
-        HOST_IP = "147.32.84.205"
-
-        dataframe_list = []
-        headers = ['date', 'flow start', 'durat', 'prot', 'src_ip', 'src_port', 'dst_ip', 'dst_port', 'flags', 'tos',
-                   'packets', 'bytes', 'flows', 'label']
-
-        with open(input, "r") as file:
-            i = 0
-            a = file.readlines()
-            for line in a:
-                if i == 0:
-                    i = i + 1
-                else:
-                    dataframe_list.append(self.__parse_line(line))
-            self.df = pd.DataFrame(dataframe_list, columns=headers)
-            self.df = self.df[(self.df['src_ip'] == HOST_IP) | (self.df['dst_ip'] == HOST_IP)]
-
-            self.df['ip'] = self.df['src_ip'].map(str) + self.df['dst_ip']
-            self.df['ip'] = self.df['ip'].map(lambda x: x.replace(HOST_IP, ""))
-
-            self.df.to_csv(output, sep=',', index=False)
 
     # Sample the dataset using Min-Wise Sampling
     def minwise_sampling(self, size, k):
@@ -293,26 +299,130 @@ class sampling_task():
         self.heatmap(df_10)
 
 
-
-
     def heatmap(self, dataframe):
         sns.set(font_scale=1.8)
         sns.heatmap(data=dataframe, linewidths=1.0, vmax=0.075, cmap='coolwarm')
         plt.show()
 
 
+class discretization_task(task):
+    packets_values = []
+
+    def __init__(self, fileName):
+        self.load_df(fileName)
+        self.packets_values = self.__packets_to_list()
+
+    def get_ordinal_rank(self, p):
+        return math.ceil(p/100 * self.df.shape[0])
+
+    def get_nth_percentile(self, n):
+        return self.packets_values[n-1]
+
+    def get_packets_mapping(self, v):
+        if v <= self.get_nth_percentile(self.get_ordinal_rank(20)):
+            return 0
+        elif v <= self.get_nth_percentile(self.get_ordinal_rank(40)):
+            return 1
+        elif v <= self.get_nth_percentile(self.get_ordinal_rank(60)):
+            return 2
+        elif v <= self.get_nth_percentile(self.get_ordinal_rank(80)):
+            return 3
+        else:
+            return 4
+
+    def get_protocol_mapping(self, v):
+        attribute_mapping_protocol = {'TCP': 0, 'ICMP': 1, 'UDP': 2}
+        return attribute_mapping_protocol[v]
+
+
+    def __packets_to_list(self):
+        list = []
+        list_of_indices = self.df.packets.value_counts().sort_index().index
+
+        for amount_of_packet in list_of_indices:
+            occurences = self.df.packets.value_counts()[amount_of_packet]
+
+            for i in range(occurences):
+                list.append(amount_of_packet)
+
+        return list
+
+
+    def netflow_encoding(self, netflow):
+        code = 0
+        size_of_protocol_attributes = 3
+        size_of_packets_attributes = 5
+        space_size = size_of_protocol_attributes * size_of_packets_attributes #
+
+        # First iteration: protocol attribute mapping
+        code = code + self.get_protocol_mapping(netflow['prot']) * space_size / size_of_protocol_attributes
+        space_size = space_size / size_of_protocol_attributes
+
+        # Second iteration: packets attribute mapping
+        code = code + self.get_packets_mapping(netflow['packets']) * space_size / size_of_packets_attributes
+        space_size = space_size / size_of_packets_attributes
+
+        return code
+
+    def add_netflow_encoding_column(self):
+        self.df['encoding'] = self.df.apply(lambda x: self.netflow_encoding(x), axis=1)
+
+    def add_protocol_encoding_column(self):
+        self.df['protocol'] = self.df['prot'].map(lambda x: self.get_protocol_mapping(x))
+
+    def scatterplot(self):
+        #sns.regplot(data=self.df, x="protocol", y="packets", fit_reg=False)
+        sns.lmplot(x='prot', y='packets', data=self.df, fit_reg=False, hue='label')
+        plt.show()
+
+
+
 
 
 if __name__ == "__main__":
     # Sampling Task
-    sampling = sampling_task()
-    sampling.preprocess(input="capture20110818.pcap.netflow.labeled", output="preprocessed2_scen10.csv")
-    exit(0)
+    # sampling = sampling_task()
+    # sampling.preprocess(input="capture20110818.pcap.netflow.labeled", output="preprocessed2_scen10.csv",
+    #                     list_of_ips=["47.32.84.229"], task="sampling")
 
     # Sketching task
-    sketching = sketching_task()
-    sketching.load_df("preprocessed2.csv")
-    sketching.cmsketch(delta=0.01, epsilon=0.0000001)
+    # sketching = sketching_task(preprocessed2.csv")
+    # sketching.cmsketch(delta=0.01, epsilon=0.0000001)
+
+    # Botnet flow data discretization task
+    discretization = discretization_task("preprocessed2_scen10_2.csv")
+    # discretization.preprocess(input="capture20110818.pcap.netflow.labeled", output="preprocessed2_scen10_2.csv",
+    #                          list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
+    #                                  "147.32.87.36", "147.32.80.9", "147.32.87.11"], task="discretization")
+    print("Swarm")
+    discretization.scatterplot()
+    print("Swarm")
+    exit(0)
+
+    print(discretization.df.iloc[1])
+    print()
+    print()
+    print()
+    print()
+    print("encoding =", discretization.netflow_encoding(discretization.df.iloc[1]))
+    discretization.add_netflow_encoding_column()
+    print(discretization.df.iloc[1])
+
+    exit(0)
+    for i in range(discretization.df.shape[0]):
+        print("<" + discretization.df.iloc[i].prot + ", " + str(discretization.df.iloc[i].packets) + "> =",
+              discretization.netflow_encoding(discretization.df.iloc[i]))
+
+    exit(0)
+    print(discretization.packets_values)
+    print(discretization.get_ordinal_rank(99.99))
+    print(discretization.get_nth_percentile(discretization.get_ordinal_rank(99.99)))
+
+    exit(0)
+
+    discretization.load_df("preprocessed2_scen10.csv")
+    print(discretization.df['label'].value_counts())
+
 
 
     # s.hoi()
