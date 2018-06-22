@@ -166,18 +166,17 @@ class sampling_task():
     def __parse_line(self, line):
         # First replace all double tabs to one tabs.
         line = line.replace('\t\t', '\t')
+        line = line.replace('\t', " ")
 
         # Split on space
         line = line.split(' ')
-        date = line[0]
 
-        # Then split on tabs
-        line = line[1].split('\t')
         try:
-            flow_start = line[0]
-            duration = line[1]
-            protocol = line[2]
-            src_ip_port = line[3].split(':')
+            date = line[0]
+            flow_start = line[1]
+            duration = line[2]
+            protocol = line[3]
+            src_ip_port = line[4].split(':')
             src_ip = src_ip_port[0]
 
             # If there is no port given.
@@ -185,7 +184,7 @@ class sampling_task():
             if len(src_ip_port) == 2:
                 src_port = src_ip_port[1]
 
-            dst_ip_port = line[5].split(':')
+            dst_ip_port = line[6].split(':')
             dst_ip = dst_ip_port[0]
 
             # If there is no port given.
@@ -193,12 +192,12 @@ class sampling_task():
             if len(dst_ip_port) == 2:
                 dst_port = dst_ip_port[1]
 
-            flags = line[6]
-            tos = line[7]
-            packets = line[8]
-            bytes = line[9]
-            flows = line[10]
-            label = line[11].replace('\n', '')
+            flags = line[7]
+            tos = line[8]
+            packets = line[9]
+            bytes = line[10]
+            flows = line[11]
+            label = line[12].replace('\n', '')
         except Exception as e:
             print(e)
             print(line)
@@ -210,14 +209,14 @@ class sampling_task():
     def load_df(self, fileName):
         self.df = pd.read_csv(fileName)
 
-    def preprocess(self):
-        HOST_IP = "147.32.84.229"
+    def preprocess(self, input="", output=""):
+        HOST_IP = "147.32.84.205"
 
         dataframe_list = []
         headers = ['date', 'flow start', 'durat', 'prot', 'src_ip', 'src_port', 'dst_ip', 'dst_port', 'flags', 'tos',
                    'packets', 'bytes', 'flows', 'label']
 
-        with open("capture20110817.pcap.netflow.labeled", "r") as file:
+        with open(input, "r") as file:
             i = 0
             a = file.readlines()
             for line in a:
@@ -231,7 +230,7 @@ class sampling_task():
             self.df['ip'] = self.df['src_ip'].map(str) + self.df['dst_ip']
             self.df['ip'] = self.df['ip'].map(lambda x: x.replace(HOST_IP, ""))
 
-            self.df.to_csv('preprocessed2.csv', sep=',', index=False)
+            self.df.to_csv(output, sep=',', index=False)
 
     # Sample the dataset using Min-Wise Sampling
     def minwise_sampling(self, size, k):
@@ -306,8 +305,8 @@ class sampling_task():
 
 if __name__ == "__main__":
     # Sampling Task
-    sampling_task().task()
-
+    sampling = sampling_task()
+    sampling.preprocess(input="capture20110818.pcap.netflow.labeled", output="preprocessed2_scen10.csv")
     exit(0)
 
     # Sketching task
