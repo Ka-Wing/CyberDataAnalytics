@@ -307,25 +307,36 @@ class sampling_task(task):
 
 class discretization_task(task):
     packets_values = []
+    duration_values = []
+    bytes_values = []
 
     def __init__(self, fileName):
         self.load_df(fileName)
-        self.packets_values = self.__packets_to_list()
+        self.packets_values = self.__column_occurences_to_list('packets')
+        self.duration_values = self.__column_occurences_to_list('durat')
+        self.bytes_values = self.__column_occurences_to_list('bytes')
+
 
     def get_ordinal_rank(self, p):
         return math.ceil(p/100 * self.df.shape[0])
 
-    def get_nth_percentile(self, n):
+    def get_nth_packet_percentile(self, n):
         return self.packets_values[n-1]
 
+    def get_nth_duration_percentile(self, n):
+        return self.duration_values[n-1]
+
+    def get_nth_bytes_percentile(self, n):
+        return self.duration_values[n-1]
+
     def get_packets_mapping(self, v):
-        if v <= self.get_nth_percentile(self.get_ordinal_rank(20)):
+        if v <= self.get_nth_packet_percentile(self.get_ordinal_rank(20)):
             return 0
-        elif v <= self.get_nth_percentile(self.get_ordinal_rank(40)):
+        elif v <= self.get_nth_packet_percentile(self.get_ordinal_rank(40)):
             return 1
-        elif v <= self.get_nth_percentile(self.get_ordinal_rank(60)):
+        elif v <= self.get_nth_packet_percentile(self.get_ordinal_rank(60)):
             return 2
-        elif v <= self.get_nth_percentile(self.get_ordinal_rank(80)):
+        elif v <= self.get_nth_packet_percentile(self.get_ordinal_rank(80)):
             return 3
         else:
             return 4
@@ -334,33 +345,68 @@ class discretization_task(task):
         attribute_mapping_protocol = {'TCP': 0, 'ICMP': 1, 'UDP': 2}
         return attribute_mapping_protocol[v]
 
+    def get_duration_mapping(self, v):
+        if v <= self.get_nth_duration_percentile(self.get_ordinal_rank(20)):
+            return 0
+        elif v <= self.get_nth_duration_percentile(self.get_ordinal_rank(40)):
+            return 1
+        elif v <= self.get_nth_duration_percentile(self.get_ordinal_rank(60)):
+            return 2
+        elif v <= self.get_nth_duration_percentile(self.get_ordinal_rank(80)):
+            return 3
+        else:
+            return 4
 
-    def __packets_to_list(self):
+    def get_bytes_mapping(self, v):
+        if v <= self.get_nth_bytes_percentile(self.get_ordinal_rank(20)):
+            return 0
+        elif v <= self.get_nth_bytes_percentile(self.get_ordinal_rank(40)):
+            return 1
+        elif v <= self.get_nth_bytes_percentile(self.get_ordinal_rank(60)):
+            return 2
+        elif v <= self.get_nth_bytes_percentile(self.get_ordinal_rank(80)):
+            return 3
+        else:
+            return 4
+
+    def __column_occurences_to_list(self, column_name):
         list = []
-        list_of_indices = self.df.packets.value_counts().sort_index().index
+        list_of_indices = self.df[column_name].value_counts().sort_index().index
 
-        for amount_of_packet in list_of_indices:
-            occurences = self.df.packets.value_counts()[amount_of_packet]
+        for amount in list_of_indices:
+            occurences = self.df[column_name].value_counts()[amount]
 
             for i in range(occurences):
-                list.append(amount_of_packet)
+                list.append(amount)
 
         return list
 
 
     def netflow_encoding(self, netflow):
         code = 0
-        size_of_protocol_attributes = 3
-        size_of_packets_attributes = 5
-        space_size = size_of_protocol_attributes * size_of_packets_attributes #
+        attribute_mappings = [self.get_protocol_mapping, self.get_packets_mapping,
+                                   self.get_duration_mapping, self.get_bytes_mapping]
+        column_names = ['prot', 'packets', 'durat', 'bytes']
+        sizes = [3, 5, 5, 5]
 
-        # First iteration: protocol attribute mapping
-        code = code + self.get_protocol_mapping(netflow['prot']) * space_size / size_of_protocol_attributes
-        space_size = space_size / size_of_protocol_attributes
+        space_size = 1
+        for size in sizes:
+            space_size = space_size * size
 
-        # Second iteration: packets attribute mapping
-        code = code + self.get_packets_mapping(netflow['packets']) * space_size / size_of_packets_attributes
-        space_size = space_size / size_of_packets_attributes
+        if(netflow['prot'] == "TCP" and netflow['packets'] == 11 and netflow['bytes'] == 6925 and
+               netflow['durat'] == 0.7440000000000001):
+            print("hoi")
+
+        if(netflow['prot'] == "TCP" and netflow['packets'] == 8 and netflow['bytes'] == 1082 and
+               netflow['durat'] == 0.7440000000000001):
+            print("hoi")
+
+
+        for feature_index in range(len(attribute_mappings)):
+            code = code + attribute_mappings[feature_index](netflow[column_names[feature_index]]) * \
+                          space_size / sizes[feature_index]
+
+            space_size = space_size / sizes[feature_index]
 
         return code
 
@@ -387,6 +433,16 @@ class discretization_task(task):
         plt.legend()
         plt.show()
 
+    def print_encodings(self):
+        for i in range(self.df.shape[0]):
+            print("<" +
+                  self.df.iloc[i].prot + ", " +
+                  str(self.df.iloc[i].packets) + ", " +
+                  str(self.df.iloc[i].durat) + ", " +
+                  str(self.df.iloc[i].bytes) +
+                  "> =",
+                  self.netflow_encoding(self.df.iloc[i]))
+
 
 
 
@@ -407,6 +463,16 @@ if __name__ == "__main__":
     #                          list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
     #                                  "147.32.87.36", "147.32.80.9", "147.32.87.11"], task="discretization")
     discretization.add_netflow_encoding_column()
+    print(discretization.get_bytes_mapping(6925))
+    print(discretization.get_bytes_mapping(1082))
+
+    print(discretization.get_packets_mapping(8))
+    print(discretization.get_packets_mapping(11))
+    exit(0)
+
+    discretization.print_encodings()
+    exit()
+
     print("Swarm")
     discretization.compare_hosts("147.32.84.205", "147.32.84.170")
     discretization.compare_hosts("147.32.84.205", "147.32.84.134")
@@ -427,14 +493,11 @@ if __name__ == "__main__":
     print(discretization.df.iloc[1])
 
     exit(0)
-    for i in range(discretization.df.shape[0]):
-        print("<" + discretization.df.iloc[i].prot + ", " + str(discretization.df.iloc[i].packets) + "> =",
-              discretization.netflow_encoding(discretization.df.iloc[i]))
 
     exit(0)
     print(discretization.packets_values)
     print(discretization.get_ordinal_rank(99.99))
-    print(discretization.get_nth_percentile(discretization.get_ordinal_rank(99.99)))
+    print(discretization.get_nth_packet_percentile(discretization.get_ordinal_rank(99.99)))
 
     exit(0)
 
