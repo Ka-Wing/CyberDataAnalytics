@@ -20,7 +20,8 @@ class task():
     def load_df(self, fileName):
         self.df = pd.read_csv(fileName)
 
-    def preprocess(self, input="", output="", list_of_ips=[], task=""):
+    @staticmethod
+    def preprocess(input="", output="", list_of_ips=[], task_name=""):
         dataframe_list = []
         headers = ['date', 'flow start', 'durat', 'prot', 'src_ip', 'src_port', 'dst_ip', 'dst_port', 'flags', 'tos',
                    'packets', 'bytes', 'flows', 'label']
@@ -32,21 +33,22 @@ class task():
                 if row_counter == 0:
                     row_counter = row_counter + 1
                 else:
-                    dataframe_list.append(self.__parse_line(line))
+                    dataframe_list.append(task.__parse_line(line))
 
-            self.df = pd.DataFrame(dataframe_list, columns=headers)
-            self.df = self.df[(self.df['src_ip'].isin(list_of_ips)) | (self.df['dst_ip'].isin(list_of_ips))]
+            df = pd.DataFrame(dataframe_list, columns=headers)
+            df = df[(df['src_ip'].isin(list_of_ips)) | (df['dst_ip'].isin(list_of_ips))]
 
-            if(task=="sampling"):
-                self.df['ip'] = self.df['src_ip'].map(str) + self.df['dst_ip']
-                self.df['ip'] = self.df['ip'].map(lambda x: x.replace(list_of_ips[0], ""))
-            elif(task=="discretization"):
-                self.df = self.df[self.df['label'] != "Background"]
+            if(task_name == "sampling" or task_name == "sketching"):
+                df['ip'] = df['src_ip'].map(str) + df['dst_ip']
+                df['ip'] = df['ip'].map(lambda x: x.replace(list_of_ips[0], ""))
+            elif(task_name== "discretization"):
+                df = df[df['label'] != "Background"]
 
-            self.df.to_csv(output, sep=',', index=False)
+            df.to_csv(output, sep=',', index=False)
 
     # Parsing the line.
-    def __parse_line(self, line):
+    @staticmethod
+    def __parse_line(line):
         # First replace all double tabs to one tabs.
         line = line.replace('\t\t', '\t')
         line = line.replace('\t', " ")
@@ -158,20 +160,22 @@ class MinWiseSampling():
 
     # For every item in the stream. use input(item).
     def input(self, item):
-        random_number = random.random()
-        if random_number < self.item_value:
-            self.item = item
-            self.item_value = random_number
+        #random_number = 1#random.random()
+        #if random_number < self.item_value:
+            #self.item = item
+            #self.item_value = random_number
+            #pass
 
-        self.i = self.i + 1
+        #self.i = self.i + 1
 
-        if self.i >= self.temp:
-            self.list_of_items.append(item)
+        #if self.i >= self.temp:
+            # self.list_of_items.append(item)
 
             # Resets
-            self.temp = self.temp + self.n
-            self.item_value = 2
-            item = None
+            #self.temp = self.temp + self.n
+            #self.item_value = 2
+            #self.item = None
+        pass
 
     # Retrieving the subset dataset.
     def get_dataframe(self):
@@ -239,12 +243,20 @@ class sampling_task(task):
     #         print(df.shape[0])
 
     # Sample the dataset using Min-Wise Sampling
-    def minwise_sampling(self, size, k):
-        mws = MinWiseSampling(size, k)
+    def minwise_sampling(self, k):
+        mws = MinWiseSampling(self.df.shape[0], k)
 
-        for i in range(self.df.shape[0]):
+        t = time.time()
+
+        size = self.df.shape[0]
+        for i in range(size):
             print(i + 1, "/", self.df.shape[0])
             mws.input(self.df.iloc[i])
+
+        diff = time.time() - t
+        print("Time", diff)
+
+
 
         return mws.get_dataframe()
 
@@ -309,65 +321,73 @@ class discretization_task(task):
     packets_values = []
     duration_values = []
     bytes_values = []
+    protocol_boolean = False
+    packets_boolean = False
+    bytes_boolean = False
+    duration_boolean = False
+    bins = 0
 
-    def __init__(self, fileName):
+    def __init__(self, fileName, bins=4, protocol=True, packets=True, bytes=True, duration=True):
         self.load_df(fileName)
-        self.packets_values = self.__column_occurences_to_list('packets')
-        self.duration_values = self.__column_occurences_to_list('durat')
-        self.bytes_values = self.__column_occurences_to_list('bytes')
+        self.protocol_boolean = protocol
+        self.bins = bins
+
+        if packets:
+            self.packets_boolean = packets
+            self.packets_values = self.__column_occurences_to_list('packets')
+
+        if duration:
+            self.duration_boolean = duration
+            self.duration_values = self.__column_occurences_to_list('durat')
+
+        if bytes:
+            self.bytes_boolean = bytes
+            self.bytes_values = self.__column_occurences_to_list('bytes')
 
 
     def get_ordinal_rank(self, p):
         return math.ceil(p/100 * self.df.shape[0])
 
-    def get_nth_packet_percentile(self, n):
+    def get_nth_packets_percentile(self, n):
         return self.packets_values[n-1]
 
     def get_nth_duration_percentile(self, n):
         return self.duration_values[n-1]
 
     def get_nth_bytes_percentile(self, n):
-        return self.duration_values[n-1]
+        return self.bytes_values[n-1]
 
     def get_packets_mapping(self, v):
-        if v <= self.get_nth_packet_percentile(self.get_ordinal_rank(20)):
-            return 0
-        elif v <= self.get_nth_packet_percentile(self.get_ordinal_rank(40)):
-            return 1
-        elif v <= self.get_nth_packet_percentile(self.get_ordinal_rank(60)):
-            return 2
-        elif v <= self.get_nth_packet_percentile(self.get_ordinal_rank(80)):
-            return 3
-        else:
-            return 4
+        percentile = 100 / self.bins
+
+        for i in range(self.bins):
+            if v <= self.get_nth_packets_percentile(self.get_ordinal_rank((i + 1) * percentile)):
+                return i
+
+        return self.bins - 1
 
     def get_protocol_mapping(self, v):
         attribute_mapping_protocol = {'TCP': 0, 'ICMP': 1, 'UDP': 2}
         return attribute_mapping_protocol[v]
 
     def get_duration_mapping(self, v):
-        if v <= self.get_nth_duration_percentile(self.get_ordinal_rank(20)):
-            return 0
-        elif v <= self.get_nth_duration_percentile(self.get_ordinal_rank(40)):
-            return 1
-        elif v <= self.get_nth_duration_percentile(self.get_ordinal_rank(60)):
-            return 2
-        elif v <= self.get_nth_duration_percentile(self.get_ordinal_rank(80)):
-            return 3
-        else:
-            return 4
+        percentile = 100 / self.bins
+
+        for i in range(self.bins):
+            if v <= self.get_nth_duration_percentile(self.get_ordinal_rank((i+1) * percentile)):
+                return i
+
+        return self.bins - 1
+
 
     def get_bytes_mapping(self, v):
-        if v <= self.get_nth_bytes_percentile(self.get_ordinal_rank(20)):
-            return 0
-        elif v <= self.get_nth_bytes_percentile(self.get_ordinal_rank(40)):
-            return 1
-        elif v <= self.get_nth_bytes_percentile(self.get_ordinal_rank(60)):
-            return 2
-        elif v <= self.get_nth_bytes_percentile(self.get_ordinal_rank(80)):
-            return 3
-        else:
-            return 4
+        percentile = 100 / self.bins
+
+        for i in range(self.bins):
+            if v <= self.get_nth_bytes_percentile(self.get_ordinal_rank((i + 1) * percentile)):
+                return i
+
+        return self.bins - 1
 
     def __column_occurences_to_list(self, column_name):
         list = []
@@ -384,29 +404,30 @@ class discretization_task(task):
 
     def netflow_encoding(self, netflow):
         code = 0
-        attribute_mappings = [self.get_protocol_mapping, self.get_packets_mapping,
-                                   self.get_duration_mapping, self.get_bytes_mapping]
-        column_names = ['prot', 'packets', 'durat', 'bytes']
-        sizes = [3, 5, 5, 5]
+
+        # Each tupple is in the form of <function_name, column_name in dataframe, size>
+        attributes_tuples = []
+
+        if self.protocol_boolean:
+            attributes_tuples.append([self.get_protocol_mapping, 'prot', 3])
+
+        if self.packets_boolean:
+            attributes_tuples.append([self.get_packets_mapping, 'packets', 5])
+
+        if self.duration_boolean:
+            attributes_tuples.append([self.get_duration_mapping, 'durat', 5])
+
+        if self.bytes_boolean:
+            attributes_tuples.append([self.get_bytes_mapping, 'bytes', 5])
 
         space_size = 1
-        for size in sizes:
-            space_size = space_size * size
-
-        if(netflow['prot'] == "TCP" and netflow['packets'] == 11 and netflow['bytes'] == 6925 and
-               netflow['durat'] == 0.7440000000000001):
-            print("hoi")
-
-        if(netflow['prot'] == "TCP" and netflow['packets'] == 8 and netflow['bytes'] == 1082 and
-               netflow['durat'] == 0.7440000000000001):
-            print("hoi")
+        for tuple in attributes_tuples:
+            space_size = space_size * tuple[2]
 
 
-        for feature_index in range(len(attribute_mappings)):
-            code = code + attribute_mappings[feature_index](netflow[column_names[feature_index]]) * \
-                          space_size / sizes[feature_index]
-
-            space_size = space_size / sizes[feature_index]
+        for tuple in attributes_tuples:
+            code = code + tuple[0](netflow[tuple[1]]) * (space_size / tuple[2])
+            space_size = space_size / tuple[2]
 
         return code
 
@@ -425,7 +446,8 @@ class discretization_task(task):
         print("encoding", self.df['encoding'].unique())
         infected = self.df[(self.df['src_ip'] == infected_host) | (self.df['dst_ip'] == infected_host)]
         normal = self.df[(self.df['src_ip'] == normal_host) | (self.df['dst_ip'] == normal_host)]
-        
+
+        plt.title(infected_host + " vs. " + normal_host)
         plt.plot(infected['encoding'], label='infected')
         plt.plot(normal['encoding'], label='normal')
         plt.xlabel('netflow')
@@ -449,29 +471,31 @@ class discretization_task(task):
 
 if __name__ == "__main__":
     # Sampling Task
-    # sampling = sampling_task()
-    # sampling.preprocess(input="capture20110818.pcap.netflow.labeled", output="preprocessed2_scen10.csv",
-    #                     list_of_ips=["47.32.84.229"], task="sampling")
+    # sampling_task.preprocess(input="capture20110817.pcap.netflow.labeled", output="preprocessed2.csv",
+    #                    list_of_ips=["47.32.84.229"], task="sampling")
+    # sampling = sampling_task("preprocessed2.csv")
+    # sampling.minwise_sampling()
+
+    # exit(0)
 
     # Sketching task
-    # sketching = sketching_task(preprocessed2.csv")
-    # sketching.cmsketch(delta=0.01, epsilon=0.0000001)
+    # sketching_task.preprocess("capture20110817.pcap.netflow.labeled", "preprocessed2.csv",
+    #                         list_of_ips=["147.32.84.229"], task_name="sketching")
+    # sketching = sketching_task("preprocessed2.csv")
+    # sketching.cmsketch(delta=0.01, epsilon=0.0001)
+    # exit(0)
 
     # Botnet flow data discretization task
-    discretization = discretization_task("preprocessed2_scen10_2.csv")
+    discretization = discretization_task("preprocessed2_scen10_2.csv",
+                                         bins=4,
+                                         protocol=True,
+                                         packets=True,
+                                         duration=False,
+                                         bytes=False)
     # discretization.preprocess(input="capture20110818.pcap.netflow.labeled", output="preprocessed2_scen10_2.csv",
     #                          list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
     #                                  "147.32.87.36", "147.32.80.9", "147.32.87.11"], task="discretization")
     discretization.add_netflow_encoding_column()
-    print(discretization.get_bytes_mapping(6925))
-    print(discretization.get_bytes_mapping(1082))
-
-    print(discretization.get_packets_mapping(8))
-    print(discretization.get_packets_mapping(11))
-    exit(0)
-
-    discretization.print_encodings()
-    exit()
 
     print("Swarm")
     discretization.compare_hosts("147.32.84.205", "147.32.84.170")
