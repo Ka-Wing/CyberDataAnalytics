@@ -412,13 +412,13 @@ class discretization_task(task):
             attributes_tuples.append([self.get_protocol_mapping, 'prot', 3])
 
         if self.packets_boolean:
-            attributes_tuples.append([self.get_packets_mapping, 'packets', 5])
+            attributes_tuples.append([self.get_packets_mapping, 'packets', 3])
 
         if self.duration_boolean:
-            attributes_tuples.append([self.get_duration_mapping, 'durat', 5])
+            attributes_tuples.append([self.get_duration_mapping, 'durat', 3])
 
         if self.bytes_boolean:
-            attributes_tuples.append([self.get_bytes_mapping, 'bytes', 5])
+            attributes_tuples.append([self.get_bytes_mapping, 'bytes', 3])
 
         space_size = 1
         for tuple in attributes_tuples:
@@ -447,7 +447,7 @@ class discretization_task(task):
         infected = self.df[(self.df['src_ip'] == infected_host) | (self.df['dst_ip'] == infected_host)]
         normal = self.df[(self.df['src_ip'] == normal_host) | (self.df['dst_ip'] == normal_host)]
 
-        plt.title(infected_host + " vs. " + normal_host)
+        plt.title("Infected (" + infected_host + ") vs. Normal (" + normal_host + ")")
         plt.plot(infected['encoding'], label='infected')
         plt.plot(normal['encoding'], label='normal')
         plt.xlabel('netflow')
@@ -487,7 +487,7 @@ if __name__ == "__main__":
 
     # Botnet flow data discretization task
     discretization = discretization_task("preprocessed2_scen10_2.csv",
-                                         bins=4,
+                                         bins=3,
                                          protocol=True,
                                          packets=True,
                                          duration=False,
