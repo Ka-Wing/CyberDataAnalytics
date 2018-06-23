@@ -11,7 +11,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import sys
 import time
-from assignment3.CountMin import Sketch
+#from assignment3.CountMin import Sketch
 
 
 class task():
@@ -374,6 +374,18 @@ class discretization_task(task):
         #sns.regplot(data=self.df, x="protocol", y="packets", fit_reg=False)
         sns.lmplot(x='prot', y='packets', data=self.df, fit_reg=False, hue='label')
         plt.show()
+        
+    def compare_hosts(self, infected_host, normal_host):        
+        print("encoding", self.df['encoding'].unique())
+        infected = self.df[(self.df['src_ip'] == infected_host) | (self.df['dst_ip'] == infected_host)]
+        normal = self.df[(self.df['src_ip'] == normal_host) | (self.df['dst_ip'] == normal_host)]
+        
+        plt.plot(infected['encoding'], label='infected')
+        plt.plot(normal['encoding'], label='normal')
+        plt.xlabel('netflow')
+        plt.ylabel('encoding')
+        plt.legend()
+        plt.show()
 
 
 
@@ -394,8 +406,14 @@ if __name__ == "__main__":
     # discretization.preprocess(input="capture20110818.pcap.netflow.labeled", output="preprocessed2_scen10_2.csv",
     #                          list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
     #                                  "147.32.87.36", "147.32.80.9", "147.32.87.11"], task="discretization")
+    discretization.add_netflow_encoding_column()
     print("Swarm")
-    discretization.scatterplot()
+    discretization.compare_hosts("147.32.84.205", "147.32.84.170")
+    discretization.compare_hosts("147.32.84.205", "147.32.84.134")
+    discretization.compare_hosts("147.32.84.205", "147.32.84.164")
+    discretization.compare_hosts("147.32.84.205", "147.32.87.36")
+    discretization.compare_hosts("147.32.84.205", "147.32.80.9")
+    discretization.compare_hosts("147.32.84.205", "147.32.87.11")
     print("Swarm")
     exit(0)
 
