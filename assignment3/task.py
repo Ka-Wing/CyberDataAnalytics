@@ -29,13 +29,12 @@ class task():
                     dataframe_list.append(task.__parse_line(line))
 
             df = pd.DataFrame(dataframe_list, columns=headers)
-
             df = df[(df['src_ip'].isin(list_of_ips)) | (df['dst_ip'].isin(list_of_ips))]
 
-            if (task_name == 'sampling' or task_name == 'sketching'):
+            if (task_name == "sampling" or task_name == "sketching"):
                 df['ip'] = df['src_ip'].map(str) + df['dst_ip']
                 df['ip'] = df['ip'].map(lambda x: x.replace(list_of_ips[0], ""))
-            elif task_name == 'discretization' or 'profiling':
+            elif task_name == "discretization" or "profiling":
                 df = df[df['label'] != "Background"]
 
             df.to_csv(output, sep=',', index=False)
