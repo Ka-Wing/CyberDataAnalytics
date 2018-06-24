@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import sys
 import time
 #from assignment3.CountMin import Sketch
+from hmmlearn import hmm
 
 
 class task():
@@ -367,7 +368,7 @@ class discretization_task(task):
         return self.bins - 1
 
     def get_protocol_mapping(self, v):
-        attribute_mapping_protocol = {'TCP': 0, 'ICMP': 1, 'UDP': 2}
+        attribute_mapping_protocol = {'TCP': 0, 'UDP': 1, 'ICMP': 2}
         return attribute_mapping_protocol[v]
 
     def get_duration_mapping(self, v):
@@ -465,8 +466,104 @@ class discretization_task(task):
                   "> =",
                   self.netflow_encoding(self.df.iloc[i]))
 
-
-
+class profiling_task(task):
+    dataframe = None
+    infected_hosts = None
+    normal_hosts = None
+    
+    # infected_hosts is minus our chosen infected host "147.32.84.165"  
+    def __init__(self, dataframe, infected_hosts, normal_hosts):
+        self.dataframe = dataframe
+        self.infected_hosts = infected_hosts
+        self.normal_hosts = normal_hosts
+        
+    # returns array with sliding windows of size window_size
+    def sliding_windows(self, ip, window_size):
+        new_data = []
+        data = self.dataframe[(self.dataframe['src_ip'] == ip) | (self.dataframe['dst_ip'] == ip)]
+        data = data['encoding'].tolist()
+        
+        if len(data) < window_size:
+            return new_data
+        
+        for i in range(len(data)-window_size):
+            new_data.append(data[i:i+window_size])
+        new_data = np.array(new_data)
+        
+        return new_data
+    
+    # returns the log probability of all hosts
+    def hmm_model(self, data):
+        # learn hmm from the data of infected host "147.32.84.165"
+        model = hmm.GaussianHMM(n_components=4)
+        model.fit(data)
+        # save the log probability
+        logprob_infected = model.score(data)
+        
+        # get log probability of the other infected and normal hosts
+        # using the model learned from the data from the chosen infected host
+        logprob_others = []
+        
+        for infected in self.infected_hosts:
+            new_data = self.sliding_windows(infected, 10)
+            if len(new_data) == 0:
+                logprob_others.append((infected, 0))
+            else:    
+                logprob_others.append((infected, model.score(new_data)))
+            
+        for normal in self.normal_hosts:
+            new_data = self.sliding_windows(normal, 10)
+            if len(new_data) == 0:
+                logprob_others.append((normal, 0))
+            else:
+                logprob_others.append((normal, model.score(new_data)))
+            
+        print("logprob_infected: ", logprob_infected)
+        print("logprob_others: ", logprob_others)
+            
+        return logprob_infected, logprob_others
+    
+    # returns a list with ips which are classified as infected and another list
+    # with ips which are classified as normal
+    def classification(self, logprob_infected, logprob_others):
+        classified_infected = []
+        classified_normal = []
+        
+        for tup in logprob_others:
+            ip, logprob = tup
+            if abs(logprob - logprob_infected) < (logprob_infected/2):
+                classified_infected.append(ip)
+            else:
+                classified_normal.append(ip)
+        
+        return classified_infected, classified_normal
+    
+    # compute true negatives, true positives, false negatives, true positives,
+    # and precision and recall
+    def evaluation(self, classified_infected, classified_normal):
+        tn = 0
+        fp = 0
+        fn = 0
+        tp = 0
+        
+        for ip in classified_infected:
+            if ip in self.infected_hosts:
+                tp = tp + 1
+            else:
+                fp = fp + 1
+        
+        for ip in classified_normal:
+            if ip in self.normal_hosts:
+                tn = tn + 1
+            else:
+                fn = fn + 1
+        
+        print("tp: ", tp)
+        print("tn: ", tn)
+        print("fp: ", fp)
+        print("fn: ", fn)
+        print("precision: ", tp/(tp+fp))
+        print("recall: ", tp/(tp+fn))
 
 
 if __name__ == "__main__":
@@ -484,6 +581,27 @@ if __name__ == "__main__":
     # sketching = sketching_task("preprocessed2.csv")
     # sketching.cmsketch(delta=0.01, epsilon=0.0001)
     # exit(0)
+    
+    # Botnet profiling task
+    discretization = discretization_task("preprocessed2_scen10_2.csv",
+                                         bins=3,
+                                         protocol=True,
+                                         packets=True,
+                                         duration=False,
+                                         bytes=False)
+    discretization.add_netflow_encoding_column()
+    profiling = profiling_task(discretization.df, ["147.32.84.191", "147.32.84.192", "147.32.84.193", 
+                                                   "147.32.84.204", "147.32.84.205", "147.32.84.206",
+                                                   "147.32.84.207", "147.32.84.208", "147.32.84.209"], 
+                                                ["147.32.84.170", "147.32.84.134", "147.32.84.164",
+                                                 "147.32.87.36", "147.32.80.9", "147.32.87.11"])
+    data = profiling.sliding_windows("147.32.84.165", 10)
+    logprob_infected, logprob_others = profiling.hmm_model(data)
+    classified_infected, classified_normal = profiling.classification(logprob_infected, logprob_others)
+    profiling.evaluation(classified_infected, classified_normal)
+    
+    exit(0)
+    
 
     # Botnet flow data discretization task
     discretization = discretization_task("preprocessed2_scen10_2.csv",
