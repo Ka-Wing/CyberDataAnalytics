@@ -479,7 +479,8 @@ class discretization_task(task):
 
         # Custom x axis
         plt.xticks(r, names)
-        plt.xlabel("group")
+        plt.xlabel("protocol")
+        plt.ylabel("percentage")
         plt.title("Percentage legitimate/botnet packets per protocol")
 
         red = mpatches.Patch(color='#ff5252', label='Botnet')
