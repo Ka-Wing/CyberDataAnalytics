@@ -410,8 +410,8 @@ class discretization_task(task):
 
     def packets_visualization(self):
         print(datetime.now())
-        sns.swarmplot(data=self.df, y='packets', x='prot', hue='label')
-        # sns.stripplot(data=self.df, y='bytes', x='prot', hue='label', jitter=True)
+        # sns.swarmplot(data=self.df, y='packets', x='prot', hue='label')
+        sns.stripplot(data=self.df, y='bytes', x='prot', hue='label', jitter=True)
         print(datetime.now())
         plt.show()
 
@@ -537,8 +537,6 @@ class discretization_task(task):
         normal = self.df[(self.df['src_ip'] == normal_host) | (self.df['dst_ip'] == normal_host)]
 
         plt.title(infected_host + " vs. " + normal_host)
-        plt.plot(infected['encoding'], label='botnet')
-        plt.plot(normal['encoding'], label='legitimate')
         plt.title("Infected (" + infected_host + ") vs. Normal (" + normal_host + ")")
         plt.plot(infected['encoding'], label='infected')
         plt.plot(normal['encoding'], label='normal')
@@ -710,8 +708,8 @@ if __name__ == "__main__":
     #                          list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
     #                                  "147.32.87.36", "147.32.80.9", "147.32.87.11"], task="discretization")
 
-    discretization.protocol_visualization()
-    # discretization.packets_visualization()
+    # discretization.protocol_visualization()
+    discretization.packets_visualization()
     exit(0)
 
     # discretization.correlation('packets', 'bytes')
