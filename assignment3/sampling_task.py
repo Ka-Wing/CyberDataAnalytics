@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import math
+import time
 
 
 class sampling_task(task):
@@ -118,7 +119,7 @@ class sampling_task(task):
 
         while not i > size:
             k = int(i)
-            df = self.minwise_sampling(size, k)
+            df = self.minwise_sampling(k)
             df.to_csv('datasets/mws/20/mws_sample_' + str(i) + '.csv', sep=',', index=False)
 
 
@@ -126,16 +127,19 @@ class sampling_task(task):
 
         for i in list_of_size:
             k = int(i)
-            df = self.minwise_sampling(size, k)
+            df = self.minwise_sampling(k)
             df.to_csv('datasets/mws/10/mws_sample_' + str(i) + '.csv', sep=',', index=False)
 
     @staticmethod
     def run_task(preprocessing=False, create_minwise_sampling_dataset=False):
-
+        print("Preprocessing. Wait til it says it is done.")
         if preprocessing:
             sampling_task.preprocess(input="datasets/capture20110817.pcap.netflow.labeled",
                                      output="datasets/preprocessed_task_1.csv",
-                                     list_of_ips=["47.32.84.229"], task_name="sampling")
+                                     list_of_ips=["147.32.84.229"], task_name="sampling")
+        print("Done.")
+        time.sleep(3)
+
 
 
         sampling = sampling_task("datasets/preprocessed_task_1.csv")

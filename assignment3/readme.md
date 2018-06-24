@@ -34,3 +34,7 @@ Task```.
 * Use the preprocessed datasets provided by us or you can generate them yourselves. Be sure to use the correct datasets
 to process with stated in the report. <br />
 * Feel free to ask us questions if you are running into small problems. Look for us at Slack. <br />
+
+We have split the task into several tasks because one group decided to deduct points for readability of the code
+due to code that was clustered together in one file. We have therefore decided to split the tasks to several files, but
+it seems some systems fails to import local files.
