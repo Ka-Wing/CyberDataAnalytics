@@ -9,6 +9,7 @@ from os.path import isfile, join
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import sys
 import time
 #from assignment3.CountMin import Sketch
@@ -472,15 +473,19 @@ class discretization_task(task):
         barWidth = 0.40
         names = ('TCP', 'ICMP', 'UDP')
         # Create green Bars
-        plt.bar(r, greenBars, color='#b5ffb9', edgecolor='white', width=barWidth)
+        a = plt.bar(r, greenBars, color='#b5ffb9', edgecolor='white', width=barWidth)
         # Create orange Bars
-        plt.bar(r, redBars, bottom=greenBars, color='#ff5252', edgecolor='white', width=barWidth)
+        b = plt.bar(r, redBars, bottom=greenBars, color='#ff5252', edgecolor='white', width=barWidth)
 
         # Custom x axis
         plt.xticks(r, names)
         plt.xlabel("group")
         plt.title("Percentage legitimate/botnet packets per protocol")
-        plt.legend()
+
+        red = mpatches.Patch(color='#ff5252', label='Botnet')
+        green = mpatches.Patch(color='#b5ffb9', label='Legitimate')
+
+        plt.legend(handles=[red, green])
 
         # Show graphic
         plt.show()
@@ -672,25 +677,25 @@ if __name__ == "__main__":
     # sketching.cmsketch(delta=0.01, epsilon=0.0001)
     # exit(0)
 
-    # Botnet profiling task
-    discretization = discretization_task("preprocessed2_scen10_2.csv",
-                                         bins=3,
-                                         protocol=True,
-                                         packets=True,
-                                         duration=False,
-                                         bytes=False)
-    discretization.add_netflow_encoding_column()
-    profiling = profiling_task(discretization.df, ["147.32.84.191", "147.32.84.192", "147.32.84.193",
-                                                   "147.32.84.204", "147.32.84.205", "147.32.84.206",
-                                                   "147.32.84.207", "147.32.84.208", "147.32.84.209"],
-                                                ["147.32.84.170", "147.32.84.134", "147.32.84.164",
-                                                 "147.32.87.36", "147.32.80.9", "147.32.87.11"])
-    data = profiling.sliding_windows("147.32.84.165", 10)
-    logprob_infected, logprob_others = profiling.hmm_model(data)
-    classified_infected, classified_normal = profiling.classification(logprob_infected, logprob_others)
-    profiling.evaluation(classified_infected, classified_normal)
-
-    exit(0)
+    # # Botnet profiling task
+    # discretization = discretization_task("preprocessed2_scen10_2.csv",
+    #                                      bins=3,
+    #                                      protocol=True,
+    #                                      packets=True,
+    #                                      duration=False,
+    #                                      bytes=False)
+    # discretization.add_netflow_encoding_column()
+    # profiling = profiling_task(discretization.df, ["147.32.84.191", "147.32.84.192", "147.32.84.193",
+    #                                                "147.32.84.204", "147.32.84.205", "147.32.84.206",
+    #                                                "147.32.84.207", "147.32.84.208", "147.32.84.209"],
+    #                                             ["147.32.84.170", "147.32.84.134", "147.32.84.164",
+    #                                              "147.32.87.36", "147.32.80.9", "147.32.87.11"])
+    # data = profiling.sliding_windows("147.32.84.165", 10)
+    # logprob_infected, logprob_others = profiling.hmm_model(data)
+    # classified_infected, classified_normal = profiling.classification(logprob_infected, logprob_others)
+    # profiling.evaluation(classified_infected, classified_normal)
+    #
+    # exit(0)
 
 
     # Botnet flow data discretization task
