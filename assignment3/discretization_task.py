@@ -1,4 +1,4 @@
-from assignment3.task import task
+from .task import task
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns

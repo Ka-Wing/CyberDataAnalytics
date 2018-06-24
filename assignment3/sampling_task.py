@@ -1,7 +1,7 @@
 import numpy as np
 
-from assignment3.task import task
-from assignment3.misc import MinWiseSampling
+from .task import task
+from .misc import MinWiseSampling
 from os import listdir
 from os.path import isfile, join
 import matplotlib.pyplot as plt

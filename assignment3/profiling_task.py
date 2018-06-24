@@ -1,5 +1,5 @@
-from assignment3.task import task
-from assignment3.discretization_task import discretization_task
+from .task import task
+from .discretization_task import discretization_task
 import numpy as np
 from hmmlearn import hmm
 

@@ -1,6 +1,5 @@
-from assignment3.task import task
-from assignment3.misc import CountMinSketch
-import pandas as pd
+from .task import task
+from .misc import CountMinSketch
 
 class sketching_task(task):
     # Top ten most frequent in descending order
