@@ -262,7 +262,7 @@ class discretization_task(task):
                                          "147.32.87.36", "147.32.80.9", "147.32.87.11"], task_name="discretization")
             print("Done.")
 
-        discretization = discretization_task("datasets/preprocessed_task_3_4.csv.csv",
+        discretization = discretization_task("datasets/preprocessed_task_3_4.csv",
                                              bins=3,
                                              protocol=True,
                                              packets=True,
