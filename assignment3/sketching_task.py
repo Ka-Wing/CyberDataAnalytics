@@ -35,7 +35,8 @@ class sketching_task(task):
 
         for epsilon in [0.01, 0.001, 0.0001, 0.00001]:
             sketching.cmsketch(delta=0.01, epsilon=epsilon)
-            print("This results will stay here 15 seconds on screen before calculating CM-sketch with another epsilon.")
+            print("These results will stay here 15 seconds on screen before calculating CM-sketch with another "
+                  "epsilon.")
             time.sleep(15)
 
 if __name__ == "__main__":

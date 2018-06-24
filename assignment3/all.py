@@ -218,12 +218,13 @@ class sampling_task(task):
 
     @staticmethod
     def run_task(preprocessing=False, create_minwise_sampling_dataset=False):
-        print("Preprocessing. Wait til it says it is done.")
         if preprocessing:
+            print("Preprocessing. Wait til it says it is done.")
+
             sampling_task.preprocess(input="datasets/capture20110817.pcap.netflow.labeled",
                                      output="datasets/preprocessed_task_1.csv",
                                      list_of_ips=["147.32.84.229"], task_name="sampling")
-        print("Done.")
+            print("Done.")
         time.sleep(3)
 
 
@@ -264,7 +265,8 @@ class sketching_task(task):
 
         for epsilon in [0.01, 0.001, 0.0001, 0.00001]:
             sketching.cmsketch(delta=0.01, epsilon=epsilon)
-            print("This results will stay here 15 seconds on screen before calculating CM-sketch with another epsilon.")
+            print("These results will stay here 15 seconds on screen before calculating CM-sketch with another "
+                  "epsilon.")
             time.sleep(15)
 
 
@@ -777,7 +779,10 @@ if __name__ == "__main__":
     # Set it to False use the provided dataset.
 
     # Consider setting all on False for sampling, as generating might an hour for a fast computer.
-    sampling_task.run_task(preprocessing=True, create_minwise_sampling_dataset=True)
+
+    # Also consider running one method at a time, or the settings of plots in one method has impact on plots of other
+    # methods.
+    sampling_task.run_task(preprocessing=False, create_minwise_sampling_dataset=False)
+    sketching_task.run_task(preprocessing=False)
     profiling_task.run_task(preprocessing=False)
     discretization_task.run_task(preprocessing=False)
-    sketching_task.run_task(preprocessing=False)
