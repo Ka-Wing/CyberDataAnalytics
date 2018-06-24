@@ -411,7 +411,7 @@ class discretization_task(task):
     def packets_visualization(self):
         print(datetime.now())
         # sns.swarmplot(data=self.df, y='packets', x='prot', hue='label')
-        sns.stripplot(data=self.df, y='bytes', x='prot', hue='label', jitter=True)
+        sns.stripplot(data=self.df, y='packets', x='prot', hue='label', jitter=True)
         print(datetime.now())
         plt.show()
 
