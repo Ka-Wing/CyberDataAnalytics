@@ -784,5 +784,5 @@ if __name__ == "__main__":
     # methods.
     sampling_task.run_task(preprocessing=False, create_minwise_sampling_dataset=False)
     sketching_task.run_task(preprocessing=False)
-    profiling_task.run_task(preprocessing=False)
     discretization_task.run_task(preprocessing=False)
+    profiling_task.run_task(preprocessing=False)

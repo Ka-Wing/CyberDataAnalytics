@@ -283,4 +283,6 @@ class discretization_task(task):
 
 if __name__ == "__main__":
     # Set 'preprocessing' to True if you want to create the dataset, set to False to use the provided dataset.
-    discretization_task.run_task(preprocessing=True)
+    discretization_task.run_task(preprocessing=False)
+
+#
