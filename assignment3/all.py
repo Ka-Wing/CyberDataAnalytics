@@ -651,11 +651,11 @@ class profiling_task(task):
         print("recall: ", tp / (tp + fn))
 
     @staticmethod
-    def run_task(self, preprocessing=False):
+    def run_task(preprocessing=False):
         if preprocessing:
             if (preprocessing):
                 print("Preprocessing. Wait til it says it is done.")
-                self.preprocess(input="datasets/capture20110818.pcap.netflow.labeled",
+                profiling_task.preprocess(input="datasets/capture20110818.pcap.netflow.labeled",
                                 output="datasets/preprocessed_task_3_4.csv",
                                 list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
                                              "147.32.87.36", "147.32.80.9", "147.32.87.11"], task_name="profiling")
