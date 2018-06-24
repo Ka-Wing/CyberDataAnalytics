@@ -258,7 +258,7 @@ class discretization_task(task):
         if (preprocessing):
             self.preprocess(input="capture20110818.pcap.netflow.labeled", output="datasets/preprocessed_task_3_4.csv",
                             list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
-                                         "147.32.87.36", "147.32.80.9", "147.32.87.11"], task="discretization")
+                                         "147.32.87.36", "147.32.80.9", "147.32.87.11"], task_name="discretization")
 
         discretization = discretization_task("datasets/preprocessed_task_3_4.csv.csv",
                                              bins=3,

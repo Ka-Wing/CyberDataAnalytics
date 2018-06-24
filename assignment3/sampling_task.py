@@ -1,7 +1,7 @@
 import numpy as np
 
-from .task import task
-from .misc import MinWiseSampling
+from assignment3.task import task
+from assignment3.misc import MinWiseSampling
 from os import listdir
 from os.path import isfile, join
 import matplotlib.pyplot as plt
@@ -135,7 +135,7 @@ class sampling_task(task):
         if preprocessing:
             sampling_task.preprocess(input="datasets/capture20110817.pcap.netflow.labeled",
                                      output="datasets/preprocessed_task_1.csv",
-                                     list_of_ips=["47.32.84.229"], task="sampling")
+                                     list_of_ips=["47.32.84.229"], task_name="sampling")
 
 
         sampling = sampling_task("datasets/preprocessed_task_1.csv")
@@ -146,4 +146,4 @@ if __name__ == "__main__":
 
     # Set create_'minwise_sampling_dataset' to True on if you want to create the minwise-sampling datasets,
     # Set it to False use the provided dataset.
-    sampling_task.run_task(preprocessing=False, create_minwise_sampling_dataset=False)
+    sampling_task.run_task(preprocessing=True, create_minwise_sampling_dataset=True)
