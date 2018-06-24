@@ -13,6 +13,10 @@ import sys
 import time
 #from assignment3.CountMin import Sketch
 from hmmlearn import hmm
+from datetime import datetime
+
+
+# from assignment3.CountMin import Sketch
 
 
 class task():
@@ -39,10 +43,10 @@ class task():
             df = pd.DataFrame(dataframe_list, columns=headers)
             df = df[(df['src_ip'].isin(list_of_ips)) | (df['dst_ip'].isin(list_of_ips))]
 
-            if(task_name == "sampling" or task_name == "sketching"):
+            if (task_name == "sampling" or task_name == "sketching"):
                 df['ip'] = df['src_ip'].map(str) + df['dst_ip']
                 df['ip'] = df['ip'].map(lambda x: x.replace(list_of_ips[0], ""))
-            elif(task_name== "discretization"):
+            elif task_name == "discretization":
                 df = df[df['label'] != "Background"]
 
             df.to_csv(output, sep=',', index=False)
@@ -327,11 +331,13 @@ class discretization_task(task):
     bytes_boolean = False
     duration_boolean = False
     bins = 0
+    attribute_mapping_protocol = {}
 
     def __init__(self, fileName, bins=4, protocol=True, packets=True, bytes=True, duration=True):
         self.load_df(fileName)
         self.protocol_boolean = protocol
         self.bins = bins
+        self.attribute_mapping_protocol = {'TCP': 0, 'UDP': 1, 'ICMP': 2}
 
         if packets:
             self.packets_boolean = packets
@@ -368,8 +374,7 @@ class discretization_task(task):
         return self.bins - 1
 
     def get_protocol_mapping(self, v):
-        attribute_mapping_protocol = {'TCP': 0, 'UDP': 1, 'ICMP': 2}
-        return attribute_mapping_protocol[v]
+        return self.attribute_mapping_protocol[v]
 
     def get_duration_mapping(self, v):
         percentile = 100 / self.bins
@@ -402,6 +407,83 @@ class discretization_task(task):
 
         return list
 
+    def packets_visualization(self):
+        print(datetime.now())
+        sns.swarmplot(data=self.df, y='packets', x='prot', hue='label')
+        # sns.stripplot(data=self.df, y='bytes', x='prot', hue='label', jitter=True)
+        print(datetime.now())
+        plt.show()
+
+    def protocol_visualization(self):
+        df_tcp = self.df[self.df['prot'] == "TCP"]
+        df_icmp = self.df[self.df['prot'] == "ICMP"]
+        df_udp = self.df[self.df['prot'] == "UDP"]
+
+        try:
+            tcp_botnet = df_tcp['label'].value_counts()['Botnet']
+        except:
+            tcp_botnet = 0.000001  # Set to this number because code cannot divide zero when making the plots.
+
+        try:
+            tcp_legitimate = df_tcp['label'].value_counts()['LEGITIMATE']
+        except:
+            tcp_legitimate = 0.000001
+
+        try:
+            icmp_botnet = df_icmp['label'].value_counts()['Botnet']
+        except:
+            icmp_botnet = 0.000001
+
+        try:
+            icmp_legitimate = df_icmp['label'].value_counts()['LEGITIMATE']
+        except:
+            icmp_legitimate = 0.000001
+
+        try:
+            udp_botnet = df_udp['label'].value_counts()['Botnet']
+        except:
+            udp_botnet = 0.000001
+
+        try:
+            udp_legitimate = df_udp['label'].value_counts()['LEGITIMATE']
+        except:
+            udp_legitimate = 0.000001
+
+        print("tcp legitimate: ", tcp_legitimate)
+        print("tcp botnet: ", tcp_botnet)
+        print("icmp legitimate: ", icmp_legitimate)
+        print("icmp botnet: ", icmp_botnet)
+        print("udp legitimate: ", udp_legitimate)
+        print("udp botnet: ", udp_botnet)
+
+        # Data
+        r = [0, 1, 2]
+        raw_data = {'greenBars': [tcp_legitimate, icmp_legitimate, udp_legitimate],
+                    'redBars': [tcp_botnet, icmp_botnet, udp_botnet],
+                    }
+        df = pd.DataFrame(raw_data)
+
+        # From raw value to percentage
+        totals = [i + j for i, j in zip(df['greenBars'], df['redBars'])]
+        greenBars = [i / j * 100 for i, j in zip(df['greenBars'], totals)]
+        redBars = [i / j * 100 for i, j in zip(df['redBars'], totals)]
+
+        # plot
+        barWidth = 0.40
+        names = ('TCP', 'ICMP', 'UDP')
+        # Create green Bars
+        plt.bar(r, greenBars, color='#b5ffb9', edgecolor='white', width=barWidth)
+        # Create orange Bars
+        plt.bar(r, redBars, bottom=greenBars, color='#ff5252', edgecolor='white', width=barWidth)
+
+        # Custom x axis
+        plt.xticks(r, names)
+        plt.xlabel("group")
+        plt.title("Percentage legitimate/botnet packets per protocol")
+        plt.legend()
+
+        # Show graphic
+        plt.show()
 
     def netflow_encoding(self, netflow):
         code = 0
@@ -410,16 +492,16 @@ class discretization_task(task):
         attributes_tuples = []
 
         if self.protocol_boolean:
-            attributes_tuples.append([self.get_protocol_mapping, 'prot', 3])
+            attributes_tuples.append([self.get_protocol_mapping, 'prot', len(self.attribute_mapping_protocol)])
 
         if self.packets_boolean:
-            attributes_tuples.append([self.get_packets_mapping, 'packets', 3])
+            attributes_tuples.append([self.get_packets_mapping, 'packets', self.bins])
 
         if self.duration_boolean:
-            attributes_tuples.append([self.get_duration_mapping, 'durat', 3])
+            attributes_tuples.append([self.get_duration_mapping, 'durat', self.bins])
 
         if self.bytes_boolean:
-            attributes_tuples.append([self.get_bytes_mapping, 'bytes', 3])
+            attributes_tuples.append([self.get_bytes_mapping, 'bytes', self.bins])
 
         space_size = 1
         for tuple in attributes_tuples:
@@ -439,15 +521,18 @@ class discretization_task(task):
         self.df['protocol'] = self.df['prot'].map(lambda x: self.get_protocol_mapping(x))
 
     def scatterplot(self):
-        #sns.regplot(data=self.df, x="protocol", y="packets", fit_reg=False)
+        # sns.regplot(data=self.df, x="protocol", y="packets", fit_reg=False)
         sns.lmplot(x='prot', y='packets', data=self.df, fit_reg=False, hue='label')
         plt.show()
-        
-    def compare_hosts(self, infected_host, normal_host):        
+
+    def compare_hosts(self, infected_host, normal_host):
         print("encoding", self.df['encoding'].unique())
         infected = self.df[(self.df['src_ip'] == infected_host) | (self.df['dst_ip'] == infected_host)]
         normal = self.df[(self.df['src_ip'] == normal_host) | (self.df['dst_ip'] == normal_host)]
 
+        plt.title(infected_host + " vs. " + normal_host)
+        plt.plot(infected['encoding'], label='botnet')
+        plt.plot(normal['encoding'], label='legitimate')
         plt.title("Infected (" + infected_host + ") vs. Normal (" + normal_host + ")")
         plt.plot(infected['encoding'], label='infected')
         plt.plot(normal['encoding'], label='normal')
@@ -466,32 +551,37 @@ class discretization_task(task):
                   "> =",
                   self.netflow_encoding(self.df.iloc[i]))
 
+    def correlation(self, first_column, second_column):
+        print("Correlation of only ICMP packets: ",
+              self.df[self.df.prot == "ICMP"][first_column].corr(self.df[self.df.prot == "ICMP"][second_column]))
+
+        print("Correlation of all packets: ", self.df[first_column].corr(self.df[second_column]))
 class profiling_task(task):
     dataframe = None
     infected_hosts = None
     normal_hosts = None
-    
-    # infected_hosts is minus our chosen infected host "147.32.84.165"  
+
+    # infected_hosts is minus our chosen infected host "147.32.84.165"
     def __init__(self, dataframe, infected_hosts, normal_hosts):
         self.dataframe = dataframe
         self.infected_hosts = infected_hosts
         self.normal_hosts = normal_hosts
-        
+
     # returns array with sliding windows of size window_size
     def sliding_windows(self, ip, window_size):
         new_data = []
         data = self.dataframe[(self.dataframe['src_ip'] == ip) | (self.dataframe['dst_ip'] == ip)]
         data = data['encoding'].tolist()
-        
+
         if len(data) < window_size:
             return new_data
-        
+
         for i in range(len(data)-window_size):
             new_data.append(data[i:i+window_size])
         new_data = np.array(new_data)
-        
+
         return new_data
-    
+
     # returns the log probability of all hosts
     def hmm_model(self, data):
         # learn hmm from the data of infected host "147.32.84.165"
@@ -499,45 +589,45 @@ class profiling_task(task):
         model.fit(data)
         # save the log probability
         logprob_infected = model.score(data)
-        
+
         # get log probability of the other infected and normal hosts
         # using the model learned from the data from the chosen infected host
         logprob_others = []
-        
+
         for infected in self.infected_hosts:
             new_data = self.sliding_windows(infected, 10)
             if len(new_data) == 0:
                 logprob_others.append((infected, 0))
-            else:    
+            else:
                 logprob_others.append((infected, model.score(new_data)))
-            
+
         for normal in self.normal_hosts:
             new_data = self.sliding_windows(normal, 10)
             if len(new_data) == 0:
                 logprob_others.append((normal, 0))
             else:
                 logprob_others.append((normal, model.score(new_data)))
-            
+
         print("logprob_infected: ", logprob_infected)
         print("logprob_others: ", logprob_others)
-            
+
         return logprob_infected, logprob_others
-    
+
     # returns a list with ips which are classified as infected and another list
     # with ips which are classified as normal
     def classification(self, logprob_infected, logprob_others):
         classified_infected = []
         classified_normal = []
-        
+
         for tup in logprob_others:
             ip, logprob = tup
             if abs(logprob - logprob_infected) < (logprob_infected/2):
                 classified_infected.append(ip)
             else:
                 classified_normal.append(ip)
-        
+
         return classified_infected, classified_normal
-    
+
     # compute true negatives, true positives, false negatives, true positives,
     # and precision and recall
     def evaluation(self, classified_infected, classified_normal):
@@ -545,19 +635,19 @@ class profiling_task(task):
         fp = 0
         fn = 0
         tp = 0
-        
+
         for ip in classified_infected:
             if ip in self.infected_hosts:
                 tp = tp + 1
             else:
                 fp = fp + 1
-        
+
         for ip in classified_normal:
             if ip in self.normal_hosts:
                 tn = tn + 1
             else:
                 fn = fn + 1
-        
+
         print("tp: ", tp)
         print("tn: ", tn)
         print("fp: ", fp)
@@ -581,7 +671,7 @@ if __name__ == "__main__":
     # sketching = sketching_task("preprocessed2.csv")
     # sketching.cmsketch(delta=0.01, epsilon=0.0001)
     # exit(0)
-    
+
     # Botnet profiling task
     discretization = discretization_task("preprocessed2_scen10_2.csv",
                                          bins=3,
@@ -590,22 +680,22 @@ if __name__ == "__main__":
                                          duration=False,
                                          bytes=False)
     discretization.add_netflow_encoding_column()
-    profiling = profiling_task(discretization.df, ["147.32.84.191", "147.32.84.192", "147.32.84.193", 
+    profiling = profiling_task(discretization.df, ["147.32.84.191", "147.32.84.192", "147.32.84.193",
                                                    "147.32.84.204", "147.32.84.205", "147.32.84.206",
-                                                   "147.32.84.207", "147.32.84.208", "147.32.84.209"], 
+                                                   "147.32.84.207", "147.32.84.208", "147.32.84.209"],
                                                 ["147.32.84.170", "147.32.84.134", "147.32.84.164",
                                                  "147.32.87.36", "147.32.80.9", "147.32.87.11"])
     data = profiling.sliding_windows("147.32.84.165", 10)
     logprob_infected, logprob_others = profiling.hmm_model(data)
     classified_infected, classified_normal = profiling.classification(logprob_infected, logprob_others)
     profiling.evaluation(classified_infected, classified_normal)
-    
+
     exit(0)
-    
+
 
     # Botnet flow data discretization task
     discretization = discretization_task("preprocessed2_scen10_2.csv",
-                                         bins=3,
+                                         bins=4,
                                          protocol=True,
                                          packets=True,
                                          duration=False,
@@ -613,6 +703,14 @@ if __name__ == "__main__":
     # discretization.preprocess(input="capture20110818.pcap.netflow.labeled", output="preprocessed2_scen10_2.csv",
     #                          list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
     #                                  "147.32.87.36", "147.32.80.9", "147.32.87.11"], task="discretization")
+
+    discretization.protocol_visualization()
+    # discretization.packets_visualization()
+    exit(0)
+
+    # discretization.correlation('packets', 'bytes')
+    # exit(0)
+
     discretization.add_netflow_encoding_column()
 
     print("Swarm")
