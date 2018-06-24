@@ -582,19 +582,19 @@ class discretization_task(task):
         print("Correlation of all packets: ", self.df[first_column].corr(self.df[second_column]))
 
 class profiling_task(task):
-    dataframe = None
-    infected_hosts = None
-    normal_hosts = None
+    dataframe = None # The preproccessed dataset
+    infected_hosts = None # IP of all infected hosts minus the chosen infected host (147.32.84.165)
+    normal_hosts = None # IP of all normal hosts
 
-    # infected_hosts is minus our chosen infected host "147.32.84.165"
     def __init__(self, dataframe, infected_hosts, normal_hosts):
         self.dataframe = dataframe
         self.infected_hosts = infected_hosts
         self.normal_hosts = normal_hosts
 
-    # returns array with sliding windows of size window_size
+    # Returns array with sliding windows of size window_size
     def sliding_windows(self, ip, window_size):
         new_data = []
+        # Obtain sequence data from the netflows from the given ip
         data = self.dataframe[(self.dataframe['src_ip'] == ip) | (self.dataframe['dst_ip'] == ip)]
         data = data['encoding'].tolist()
 
@@ -607,25 +607,26 @@ class profiling_task(task):
 
         return new_data
 
-    # returns the log probability of all hosts
+    # Returns the log probability of all hosts
     def hmm_model(self, data):
-        # learn hmm from the data of infected host "147.32.84.165"
+        # Learn hmm from the data of infected host 147.32.84.165
         model = hmm.GaussianHMM(n_components=4)
         model.fit(data)
-        # save the log probability
+        # Save the log probability
         logprob_infected = model.score(data)
 
-        # get log probability of the other infected and normal hosts
+        # Get log probability of the other infected and normal hosts,
         # using the model learned from the data from the chosen infected host
         logprob_others = []
-
+        
+        # Get log probability of the other infected hosts
         for infected in self.infected_hosts:
             new_data = self.sliding_windows(infected, 10)
             if len(new_data) == 0:
                 logprob_others.append((infected, 0))
             else:
                 logprob_others.append((infected, model.score(new_data)))
-
+        # Get log probability of the normal hosts
         for normal in self.normal_hosts:
             new_data = self.sliding_windows(normal, 10)
             if len(new_data) == 0:
@@ -633,12 +634,14 @@ class profiling_task(task):
             else:
                 logprob_others.append((normal, model.score(new_data)))
 
+        # Prints the log probability of the infested host and all other hosts
+        # This is used to determine the threshold
         print("logprob_infected: ", logprob_infected)
         print("logprob_others: ", logprob_others)
 
         return logprob_infected, logprob_others
 
-    # returns a list with ips which are classified as infected and another list
+    # Returns a list with ips which are classified as infected and another list,
     # with ips which are classified as normal
     def classification(self, logprob_infected, logprob_others):
         classified_infected = []
@@ -646,6 +649,8 @@ class profiling_task(task):
 
         for tup in logprob_others:
             ip, logprob = tup
+            # Check whether the difference is below the threshold logprob_infected/2?
+            # Classify accordingly
             if abs(logprob - logprob_infected) < (logprob_infected/2):
                 classified_infected.append(ip)
             else:
@@ -653,7 +658,7 @@ class profiling_task(task):
 
         return classified_infected, classified_normal
 
-    # compute true negatives, true positives, false negatives, true positives,
+    # Compute true negatives, true positives, false negatives, true positives,
     # and precision and recall
     def evaluation(self, classified_infected, classified_normal):
         tn = 0
