@@ -19,13 +19,19 @@ from datetime import datetime
 
 # from assignment3.CountMin import Sketch
 
-
+# Supermethod of any tasks.
 class task():
     df = None
 
+    # Loading dataframe from a CSV.
     def load_df(self, fileName):
         self.df = pd.read_csv(fileName)
 
+    # Preprocessing the dataset.
+    # input: Input file name
+    # output: Output file name
+    # list_of_ips: IPs to filter the dataset.
+    # taskname: "sampling", "sketching", "discretization" or "profiling"
     @staticmethod
     def preprocess(input="", output="", list_of_ips=[], task_name=""):
         dataframe_list = []
@@ -47,19 +53,20 @@ class task():
             if (task_name == "sampling" or task_name == "sketching"):
                 df['ip'] = df['src_ip'].map(str) + df['dst_ip']
                 df['ip'] = df['ip'].map(lambda x: x.replace(list_of_ips[0], ""))
-            elif task_name == "discretization":
+            elif task_name == "discretization" or "profiling":
                 df = df[df['label'] != "Background"]
 
             df.to_csv(output, sep=',', index=False)
 
-    # Parsing the line.
+    # Parsing the line of the dataset.
     @staticmethod
     def __parse_line(line):
-        # First replace all double tabs to one tabs.
+        # Replace all double tabs to one tabs.
         line = line.replace('\t\t', '\t')
+
+        # Replace all tabs to spaces.
         line = line.replace('\t', " ")
 
-        # Split on space
         line = line.split(' ')
 
         try:
@@ -97,12 +104,12 @@ class task():
         return [date, flow_start, duration, protocol, src_ip, src_port, dst_ip, dst_port, flags, tos, packets, bytes, \
                 flows, label]
 
-
+# Class initiated to perform count min sketch.
 class CountMinSketch():
     def __init__(self, delta, epsilon):
         self.w = int(np.ceil(2 / epsilon))
         self.d = int(np.ceil(np.log(1 / delta)))
-        self.count_array = np.zeros((self.d, self.w))
+        self.count_array = np.zeros((self.d, self.w)) # The table used to store the values.
         self.hash_functions = []
 
         print("w: ", self.w)
@@ -113,20 +120,18 @@ class CountMinSketch():
         for i in range(0, self.d):
             self.hash_functions.append(self.pairwise_indep_hash())
 
-    # returns a hash function from a family of pairwise independent hash functions
+    # Returns a hash function from a family of pairwise independent hash functions
     def pairwise_indep_hash(self):
-        # the formula: h(x) = ((ax+b) % p) % m with p = prime;, a > 0; a, b < p
+        # The formula: h(x) = ((ax+b) % p) % m with p = prime;, a > 0; a, b < p
         p = pow(2, 61) - 1  # some big random prime
         a = random.randrange(0, p)
         b = random.randrange(0, p)
 
-        # returns a hash function
+        # Returns a hash function
         return lambda x: ((a * x + b) % p) % self.w
 
-    # updates the counter array
+    # Updates the counter array
     def update(self, ip):
-        # [i, h_i(element)]
-
         # Convert IP to integer for hash function compatibility
         ip_int = int(ipaddress.IPv4Address(ip))
 
@@ -134,10 +139,8 @@ class CountMinSketch():
             k = self.hash_functions[j](ip_int)
             self.count_array[j][k] += 1
 
-    # estimates the number of occurrences of ip
+    # Estimates the number of occurrences of ip
     def estimate(self, ip):
-        # min(h_1(item), h_2(item), ...) = the estimate
-
         # Convert IP to integer for hash function compatibility
         ip_int = int(ipaddress.IPv4Address(ip))
 
@@ -149,6 +152,7 @@ class CountMinSketch():
         return min(list)
 
 
+# Class initiated to perform count min sketch.
 class MinWiseSampling():
     k = 0  # The size that the final subset should have.
     i = 0  # The count of arrivals.
@@ -166,56 +170,32 @@ class MinWiseSampling():
 
     # For every item in the stream. use input(item).
     def input(self, item):
-        #random_number = 1#random.random()
-        #if random_number < self.item_value:
-            #self.item = item
-            #self.item_value = random_number
-            #pass
+        random_number = random.random()
+        if random_number < self.item_value:
+            self.item = item
+            self.item_value = random_number
+            pass
 
-        #self.i = self.i + 1
+        self.i = self.i + 1
 
-        #if self.i >= self.temp:
-            # self.list_of_items.append(item)
+        if self.i >= self.temp:
+            self.list_of_items.append(item)
 
             # Resets
-            #self.temp = self.temp + self.n
-            #self.item_value = 2
-            #self.item = None
+            self.temp = self.temp + self.n
+            self.item_value = 2
+            self.item = None
         pass
 
     # Retrieving the subset dataset.
     def get_dataframe(self):
-        print("Length: ", len(self.list_of_items))
         df = pd.concat(self.list_of_items, axis=1)
-        print("Transposing")
         df = df.transpose()
-        print(df.iloc[0])
-        print(df.iloc[1])
         return df
 
 
-class sketching_task(task):
-    # Top ten most frequent in descending order
-    ip_addresses = ["208.88.186.6", "78.175.28.225", "82.113.63.230", "195.168.45.2", "82.150.185.24",
-                    "213.137.179.195", "62.180.140.208", "81.208.118.74", "88.255.232.197", "62.168.4.186"]
-
-    def __init__(self, fileName):
-        self. load_df(fileName)
-
-    def cmsketch(self, delta=0.01, epsilon=0.0000001):
-        cms = CountMinSketch(delta, epsilon)
-        t = time.time()
-        for i in range(self.df.shape[0]):
-            print(i + 1, "/", self.df.shape[0])
-            cms.update(self.df.ip.iloc[i])
-
-        print("Time: ", time.time() - t)
-        for ip in self.ip_addresses:
-            print(ip + ":", int(cms.estimate(ip)))
-
-
 class sampling_task(task):
-    # top ten most frequent in descending order
+    # Top ten most frequent in descending order
     ip_addresses = ["208.88.186.6", "78.175.28.225", "82.113.63.230", "195.168.45.2", "82.150.185.24",
                     "213.137.179.195", "62.180.140.208", "81.208.118.74", "88.255.232.197", "62.168.4.186"]
 
@@ -238,67 +218,61 @@ class sampling_task(task):
     def __get_all_file_names(self, path="./mws/20"):
         return [f for f in listdir(path) if isfile(join(path, f))]
 
-    # def hoi(self):
-    #     files = self.__get_all_file_names()
-    #     # files = ["mws_sample_274565.1.csv"]
-    #     for file in files:
-    #         print(file)
-    #         file = "mws/" + file
-    #         df = pd.read_csv(file)
-    #         print(df.ip.value_counts())
-    #         print(df.shape[0])
-
     # Sample the dataset using Min-Wise Sampling
     def minwise_sampling(self, k):
         mws = MinWiseSampling(self.df.shape[0], k)
-
-        t = time.time()
 
         size = self.df.shape[0]
         for i in range(size):
             print(i + 1, "/", self.df.shape[0])
             mws.input(self.df.iloc[i])
 
-        diff = time.time() - t
-        print("Time", diff)
-
-
-
         return mws.get_dataframe()
 
-    def task(self):
+    # This method creates the dataset, then calculates the distribution per file found, and calculates the difference
+    # w.r.t. original dataset. It then shows a heatmap of it.
+    def task(self, create_dataset=False):
+        if create_dataset:
+            print("Creates dataset, might take long (one hour). Consider using our provided dataset.")
+            self.create_datasets()
+            print("Creating dataset done.")
+
+
         files_20 = self.__get_all_file_names("./mws/20")
         files_10 = self.__get_all_file_names("./mws/10")
 
         differences_20 = []
         differences_10 = []
 
-        for file in files_20:
-            csv = pd.read_csv("./mws/20/" + file, header=0, index_col=0)
-            print(file)
+
+        for i in range(0, len(files_20)):
+            csv = pd.read_csv("./mws/20/" + files_20[i], header=0, index_col=0)
+            print("Calculating for file " + str(i+1) + "/" + str(len(files_20)))
             size = csv.shape[0]
 
             list_of_distributions = []
 
+            # Calculates the difference in distribution
             for ip in self.ip_addresses:
                 difference = math.fabs(csv['ip'].value_counts()[ip]/size * 100 - self.ip_frequencies[ip])
                 list_of_distributions.append(difference)
 
             differences_20.append(list_of_distributions)
 
-        for file in files_10:
-            csv = pd.read_csv("./mws/10/" + file, header=0, index_col=0)
-            print(file)
+            for i in range(0, len(files_10)):
+            csv = pd.read_csv("./mws/10/" + files_10[i], header=0, index_col=0)
+            print("Calculating for file " + str(i + 1) + "/" + str(len(files_10)))
             size = csv.shape[0]
 
             list_of_distributions = []
 
+            # Calculates the difference in distribution
             for ip in self.ip_addresses:
                 difference = self.ip_frequencies[ip]
                 try:
                     difference = math.fabs(csv['ip'].value_counts()[ip]/size * 100 - self.ip_frequencies[ip])
                 except:
-                    pass
+                    pass # If there are any 0 values (and there are), then division by 0 will not work.
                 list_of_distributions.append(difference)
 
             differences_10.append(list_of_distributions)
@@ -306,12 +280,11 @@ class sampling_task(task):
 
         array_20 = numpy.array(differences_20).transpose()
         array_10 = numpy.array(differences_10).transpose()
-        columns_20 = ["1/20", "2/20", "3/20", "4/20", "5/20", "6/20", "7/20", "8/20", "9/20", "10/20", "11/20",
+        column_names_20 = ["1/20", "2/20", "3/20", "4/20", "5/20", "6/20", "7/20", "8/20", "9/20", "10/20", "11/20",
                       "12/20", "13/20", "14/20", "15/20", "16/20", "17/20", "18/20", "19/20"]
-        columns_10 = ["1000", "10000", "100000", "10000000"]
-        df_20 = pd.DataFrame(array_20, columns=columns_20, index=self.ip_addresses, dtype=float)
-        df_10 = pd.DataFrame(array_10, columns=columns_10, index=self.ip_addresses, dtype=float)
-
+        column_names_10 = ["1000", "10000", "100000", "10000000"]
+        df_20 = pd.DataFrame(array_20, columns=column_names_20, index=self.ip_addresses, dtype=float)
+        df_10 = pd.DataFrame(array_10, columns=column_names_10, index=self.ip_addresses, dtype=float)
 
         self.heatmap(df_20)
         self.heatmap(df_10)
@@ -322,19 +295,56 @@ class sampling_task(task):
         sns.heatmap(data=dataframe, linewidths=1.0, vmax=0.075, cmap='coolwarm')
         plt.show()
 
+    def create_datasets(self):
+        size = self.df.shape[0]
+        print(size)
+        i = math.ceil(size / 20)
+
+        while not i > size:
+            k = int(i)
+            df = self.minwise_sampling(size, k)
+            df.to_csv('mws/20/mws_sample_' + str(i) + '.csv', sep=',', index=False)
+
+
+        list_of_size = [1000, 10000, 100000, 1000000]
+
+        for i in list_of_size:
+            k = int(i)
+            df = self.minwise_sampling(size, k)
+            df.to_csv('mws/10/mws_sample_' + str(i) + '.csv', sep=',', index=False)
+
+
+class sketching_task(task):
+    # Top ten most frequent in descending order
+    ip_addresses = ["208.88.186.6", "78.175.28.225", "82.113.63.230", "195.168.45.2", "82.150.185.24",
+                    "213.137.179.195", "62.180.140.208", "81.208.118.74", "88.255.232.197", "62.168.4.186"]
+
+    def __init__(self, fileName):
+        self. load_df(fileName)
+
+    # Perform Count-Min Sketch
+    def cmsketch(self, delta=0.01, epsilon=0.0000001):
+        cms = CountMinSketch(delta, epsilon)
+        for i in range(self.df.shape[0]):
+            print(i + 1, "/", self.df.shape[0])
+            cms.update(self.df.ip.iloc[i])
+
+        for ip in self.ip_addresses:
+            print(ip + ":", int(cms.estimate(ip)))
+
 
 class discretization_task(task):
-    packets_values = []
-    duration_values = []
-    bytes_values = []
-    protocol_boolean = False
-    packets_boolean = False
-    bytes_boolean = False
-    duration_boolean = False
-    bins = 0
-    attribute_mapping_protocol = {}
+    packets_values = [] # All values of the 'packet' column
+    duration_values = [] # All values of the 'durat' column
+    bytes_values = [] # All values of the 'bytes' column
+    protocol_boolean = False # Whether the 'protocol' should be chosen as feature.
+    packets_boolean = False # Whether the 'packets' should be chosen as feature.
+    bytes_boolean = False # Whether the 'bytes' should be chosen as feature.
+    duration_boolean = False # Whether the 'duration' should be chosen as feature.
+    bins = 0 # Amount of bins used
+    attribute_mapping_protocol = {} # The attribute mapping of the column 'prot'
 
-    def __init__(self, fileName, bins=4, protocol=True, packets=True, bytes=True, duration=True):
+    def __init__(self, fileName, bins=3, protocol=False, packets=False, bytes=False, duration=False):
         self.load_df(fileName)
         self.protocol_boolean = protocol
         self.bins = bins
@@ -365,6 +375,11 @@ class discretization_task(task):
     def get_nth_bytes_percentile(self, n):
         return self.bytes_values[n-1]
 
+    # Returns the attribute mapping of the column 'prot'.
+    def get_protocol_mapping(self, v):
+        return self.attribute_mapping_protocol[v]
+
+    # Returns the attribute mapping of the column 'packets'.
     def get_packets_mapping(self, v):
         percentile = 100 / self.bins
 
@@ -374,9 +389,7 @@ class discretization_task(task):
 
         return self.bins - 1
 
-    def get_protocol_mapping(self, v):
-        return self.attribute_mapping_protocol[v]
-
+    # Returns the attribute mapping of the column 'durat'.
     def get_duration_mapping(self, v):
         percentile = 100 / self.bins
 
@@ -387,6 +400,7 @@ class discretization_task(task):
         return self.bins - 1
 
 
+    # Returns the attribute mapping of the column 'bytes'.
     def get_bytes_mapping(self, v):
         percentile = 100 / self.bins
 
@@ -396,6 +410,7 @@ class discretization_task(task):
 
         return self.bins - 1
 
+    # Add values of all rows in a certain column to a list.
     def __column_occurences_to_list(self, column_name):
         list = []
         list_of_indices = self.df[column_name].value_counts().sort_index().index
@@ -408,18 +423,34 @@ class discretization_task(task):
 
         return list
 
+    # Plot the protocol vs packet amounts, with legitimate and botnet flows as different colors.
     def packets_visualization(self):
-        print(datetime.now())
-        # sns.swarmplot(data=self.df, y='packets', x='prot', hue='label')
         sns.stripplot(data=self.df, y='packets', x='prot', hue='label', jitter=True)
-        print(datetime.now())
         plt.show()
 
+    # Plot the ICMP netflows bytes
+    def imcp_visualization(self):
+        # Only ICMP and Botnet netflows.
+        df_icmp = self.df[(self.df['prot'] == "ICMP") & (self.df['label'] == "Botnet")]
+
+        # Sort bytes on ascending order.
+        df_icmp = df_icmp.sort_values('bytes', axis=0)
+
+        # Plot
+        nump = np.array(df_icmp['bytes'])
+        plt.plot(nump)
+        plt.axhline(y=65535, color='r', linestyle='dotted')
+        plt.ylabel("Bytes")
+        plt.title("ICMP packets in ascending bytes order.")
+        plt.show()
+
+    # Plot a barchart of percentages legitimate/botnet per protocol.
     def protocol_visualization(self):
         df_tcp = self.df[self.df['prot'] == "TCP"]
         df_icmp = self.df[self.df['prot'] == "ICMP"]
         df_udp = self.df[self.df['prot'] == "UDP"]
 
+        # Count all netflows per label per protocol.
         try:
             tcp_botnet = df_tcp['label'].value_counts()['Botnet']
         except:
@@ -457,8 +488,8 @@ class discretization_task(task):
         print("udp legitimate: ", udp_legitimate)
         print("udp botnet: ", udp_botnet)
 
-        # Data
-        r = [0, 1, 2]
+        # Data construction
+        bar_index = [0, 1, 2]
         raw_data = {'greenBars': [tcp_legitimate, icmp_legitimate, udp_legitimate],
                     'redBars': [tcp_botnet, icmp_botnet, udp_botnet],
                     }
@@ -469,32 +500,26 @@ class discretization_task(task):
         greenBars = [i / j * 100 for i, j in zip(df['greenBars'], totals)]
         redBars = [i / j * 100 for i, j in zip(df['redBars'], totals)]
 
-        # plot
+        # Plot
         barWidth = 0.40
         names = ('TCP', 'ICMP', 'UDP')
-        # Create green Bars
-        a = plt.bar(r, greenBars, color='#b5ffb9', edgecolor='white', width=barWidth)
-        # Create orange Bars
-        b = plt.bar(r, redBars, bottom=greenBars, color='#ff5252', edgecolor='white', width=barWidth)
-
-        # Custom x axis
-        plt.xticks(r, names)
+        plt.bar(bar_index, greenBars, color='#b5ffb9', edgecolor='white', width=barWidth)
+        plt.bar(bar_index, redBars, bottom=greenBars, color='#ff5252', edgecolor='white', width=barWidth)
+        plt.xticks(bar_index, names)
         plt.xlabel("protocol")
         plt.ylabel("percentage")
         plt.title("Percentage legitimate/botnet packets per protocol")
-
         red = mpatches.Patch(color='#ff5252', label='Botnet')
         green = mpatches.Patch(color='#b5ffb9', label='Legitimate')
-
         plt.legend(handles=[red, green])
 
-        # Show graphic
         plt.show()
 
+    # Encodes the netflows as stated in the paper.
     def netflow_encoding(self, netflow):
         code = 0
 
-        # Each tupple is in the form of <function_name, column_name in dataframe, size>
+        # Each tuple is in the form of <function_name, column_name in dataframe, size>
         attributes_tuples = []
 
         if self.protocol_boolean:
@@ -526,12 +551,6 @@ class discretization_task(task):
     def add_protocol_encoding_column(self):
         self.df['protocol'] = self.df['prot'].map(lambda x: self.get_protocol_mapping(x))
 
-    def scatterplot(self):
-        # sns.regplot(data=self.df, x="protocol", y="packets", fit_reg=False)
-        plt.title("Bytes per protocol with legitimtate/botnet distinction")
-        sns.lmplot(x='protocol', y='packets', data=self.df, fit_reg=False, hue='label')
-        plt.show()
-
     def compare_hosts(self, infected_host, normal_host):
         print("encoding", self.df['encoding'].unique())
         infected = self.df[(self.df['src_ip'] == infected_host) | (self.df['dst_ip'] == infected_host)]
@@ -555,11 +574,13 @@ class discretization_task(task):
                   "> =",
                   self.netflow_encoding(self.df.iloc[i]))
 
+    # Checks the correlation of two columns in the data set.
     def correlation(self, first_column, second_column):
         print("Correlation of only ICMP packets: ",
               self.df[self.df.prot == "ICMP"][first_column].corr(self.df[self.df.prot == "ICMP"][second_column]))
 
         print("Correlation of all packets: ", self.df[first_column].corr(self.df[second_column]))
+
 class profiling_task(task):
     dataframe = None
     infected_hosts = None
@@ -699,7 +720,7 @@ if __name__ == "__main__":
 
     # Botnet flow data discretization task
     discretization = discretization_task("preprocessed2_scen10_2.csv",
-                                         bins=4,
+                                         bins=3,
                                          protocol=True,
                                          packets=True,
                                          duration=False,
@@ -709,7 +730,8 @@ if __name__ == "__main__":
     #                                  "147.32.87.36", "147.32.80.9", "147.32.87.11"], task="discretization")
 
     # discretization.protocol_visualization()
-    discretization.packets_visualization()
+    # discretization.packets_visualization()
+    discretization.imcp_visualization()
     exit(0)
 
     # discretization.correlation('packets', 'bytes')
@@ -747,23 +769,3 @@ if __name__ == "__main__":
 
     discretization.load_df("preprocessed2_scen10.csv")
     print(discretization.df['label'].value_counts())
-
-
-
-    # s.hoi()
-    #
-    # exit(0)
-    #
-    # size = s.df.shape[0]
-    # print(size)
-    # i = math.ceil(size / 20)
-    #
-    # while not i > size:
-    #     k = int(i)
-    #     df = s.minwise_sampling(size, k)
-    #     df.to_csv('mws/mws_sample_' + str(i) + '.csv', sep=',', index=False)
-    #
-    #     print(df.shape[0])
-
-
-    # s.heatmap()
