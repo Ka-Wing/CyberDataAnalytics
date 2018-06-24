@@ -528,7 +528,8 @@ class discretization_task(task):
 
     def scatterplot(self):
         # sns.regplot(data=self.df, x="protocol", y="packets", fit_reg=False)
-        sns.lmplot(x='prot', y='packets', data=self.df, fit_reg=False, hue='label')
+        plt.title("Bytes per protocol with legitimtate/botnet distinction")
+        sns.lmplot(x='protocol', y='packets', data=self.df, fit_reg=False, hue='label')
         plt.show()
 
     def compare_hosts(self, infected_host, normal_host):
@@ -536,7 +537,6 @@ class discretization_task(task):
         infected = self.df[(self.df['src_ip'] == infected_host) | (self.df['dst_ip'] == infected_host)]
         normal = self.df[(self.df['src_ip'] == normal_host) | (self.df['dst_ip'] == normal_host)]
 
-        plt.title(infected_host + " vs. " + normal_host)
         plt.title("Infected (" + infected_host + ") vs. Normal (" + normal_host + ")")
         plt.plot(infected['encoding'], label='infected')
         plt.plot(normal['encoding'], label='normal')
