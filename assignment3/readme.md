@@ -9,6 +9,7 @@
 * statsmodels
 * pandas
 * matplotlib
+* numpy
 * hmmlearn
 
 ### Sampling task
