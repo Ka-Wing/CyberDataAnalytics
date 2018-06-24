@@ -1,4 +1,4 @@
-from .task import task
+from assignment3.task import task
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -254,10 +254,10 @@ class discretization_task(task):
         print("Correlation of all packets: ", self.df[first_column].corr(self.df[second_column]))
 
     @staticmethod
-    def run_task(self, preprocessing=False):
+    def run_task(preprocessing=False):
         if (preprocessing):
             print("Preprocessing. Wait til it says it is done.")
-            self.preprocess(input="capture20110818.pcap.netflow.labeled", output="datasets/preprocessed_task_3_4.csv",
+            discretization_task.preprocess(input="capture20110818.pcap.netflow.labeled", output="datasets/preprocessed_task_3_4.csv",
                             list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
                                          "147.32.87.36", "147.32.80.9", "147.32.87.11"], task_name="discretization")
             print("Done.")
@@ -283,4 +283,4 @@ class discretization_task(task):
 
 if __name__ == "__main__":
     # Set 'preprocessing' to True if you want to create the dataset, set to False to use the provided dataset.
-    discretization_task.run_task(preprocessing=False)
+    discretization_task.run_task(preprocessing=True)

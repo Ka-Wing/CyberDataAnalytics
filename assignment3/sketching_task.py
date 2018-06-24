@@ -33,7 +33,7 @@ class sketching_task(task):
 
         sketching = sketching_task("datasets/preprocessed_task_2.csv")
 
-        for epsilon in [0.001, 0.0001, 0.00001, 0.0000001]:
+        for epsilon in [0.01, 0.001, 0.0001, 0.00001]:
             sketching.cmsketch(delta=0.01, epsilon=epsilon)
             print("This results will stay here 15 seconds on screen before calculating CM-sketch with another epsilon.")
             time.sleep(15)

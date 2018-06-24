@@ -262,7 +262,7 @@ class sketching_task(task):
             print("Done")
         sketching = sketching_task("datasets/preprocessed_task_2.csv")
 
-        for epsilon in [0.001, 0.0001, 0.00001, 0.0000001]:
+        for epsilon in [0.01, 0.001, 0.0001, 0.00001]:
             sketching.cmsketch(delta=0.01, epsilon=epsilon)
             print("This results will stay here 15 seconds on screen before calculating CM-sketch with another epsilon.")
             time.sleep(15)
@@ -517,10 +517,10 @@ class discretization_task(task):
         print("Correlation of all packets: ", self.df[first_column].corr(self.df[second_column]))
 
     @staticmethod
-    def run_task(self, preprocessing=False):
+    def run_task(preprocessing=False):
         if (preprocessing):
             print("Preprocessing. Wait til it says it is done.")
-            self.preprocess(input="capture20110818.pcap.netflow.labeled", output="datasets/preprocessed_task_3_4.csv",
+            discretization_task.preprocess(input="capture20110818.pcap.netflow.labeled", output="datasets/preprocessed_task_3_4.csv",
                             list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
                                          "147.32.87.36", "147.32.80.9", "147.32.87.11"], task_name="discretization")
             print("Done.")
@@ -543,7 +543,6 @@ class discretization_task(task):
         discretization.compare_hosts("147.32.84.205", "147.32.87.36")
         discretization.compare_hosts("147.32.84.205", "147.32.80.9")
         discretization.compare_hosts("147.32.84.205", "147.32.87.11")
-
 
 
 
