@@ -190,13 +190,12 @@ class sampling_task(task):
         df_20 = pd.DataFrame(array_20, columns=column_names_20, index=self.ip_addresses, dtype=float)
         df_10 = pd.DataFrame(array_10, columns=column_names_10, index=self.ip_addresses, dtype=float)
 
-        self.heatmap(df_20)
-        self.heatmap(df_10)
-
-
-    def heatmap(self, dataframe):
         sns.set(font_scale=1.8)
-        sns.heatmap(data=dataframe, linewidths=1.0, vmax=0.075, cmap='coolwarm')
+        sns.heatmap(data=df_20, linewidths=1.0, vmax=0.02, cmap='coolwarm')
+        plt.show()
+
+        sns.set(font_scale=1.8)
+        sns.heatmap(data=df_10, linewidths=1.0, vmax=0.075, cmap='coolwarm')
         plt.show()
 
     def create_datasets(self):
@@ -248,16 +247,25 @@ class sketching_task(task):
             print(i + 1, "/", self.df.shape[0])
             cms.update(self.df.ip.iloc[i])
 
+        print()
+        print("delta:", delta, ", epsilon:", epsilon)
+
         for ip in self.ip_addresses:
             print(ip + ":", int(cms.estimate(ip)))
 
     @staticmethod
     def run_task(preprocessing=False):
         if preprocessing:
+            print("Preprocessing. Wait til it says it is done.")
             sketching_task.preprocess("capture20110817.pcap.netflow.labeled", "datasets/preprocessed_task_2.csv",
                                       list_of_ips=["147.32.84.229"], task_name="sketching")
+            print("Done")
         sketching = sketching_task("datasets/preprocessed_task_2.csv")
-        sketching.cmsketch(delta=0.01, epsilon=0.0001)
+
+        for epsilon in [0.001, 0.0001, 0.00001, 0.0000001]:
+            sketching.cmsketch(delta=0.01, epsilon=epsilon)
+            print("This results will stay here 15 seconds on screen before calculating CM-sketch with another epsilon.")
+            time.sleep(15)
 
 
 
@@ -511,9 +519,11 @@ class discretization_task(task):
     @staticmethod
     def run_task(self, preprocessing=False):
         if (preprocessing):
+            print("Preprocessing. Wait til it says it is done.")
             self.preprocess(input="capture20110818.pcap.netflow.labeled", output="datasets/preprocessed_task_3_4.csv",
                             list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
                                          "147.32.87.36", "147.32.80.9", "147.32.87.11"], task_name="discretization")
+            print("Done.")
 
         discretization = discretization_task("datasets/preprocessed_task_3_4.csv.csv",
                                              bins=3,
@@ -645,10 +655,12 @@ class profiling_task(task):
     def run_task(self, preprocessing=False):
         if preprocessing:
             if (preprocessing):
+                print("Preprocessing. Wait til it says it is done.")
                 self.preprocess(input="datasets/capture20110818.pcap.netflow.labeled",
                                 output="datasets/preprocessed_task_3_4.csv",
                                 list_of_ips=["147.32.84.205", "147.32.84.170", "147.32.84.134", "147.32.84.164",
                                              "147.32.87.36", "147.32.80.9", "147.32.87.11"], task_name="profiling")
+                print("Done.")
 
         discretization = discretization_task("datasets/preprocessed_task_3_4.csv",
                                              bins=3,
@@ -765,7 +777,7 @@ if __name__ == "__main__":
     # Set create_'minwise_sampling_dataset' to True on if you want to create the minwise-sampling datasets,
     # Set it to False use the provided dataset.
 
-
+    # Consider setting all on False for sampling, as generating might an hour for a fast computer.
     sampling_task.run_task(preprocessing=True, create_minwise_sampling_dataset=True)
     profiling_task.run_task(preprocessing=False)
     discretization_task.run_task(preprocessing=False)

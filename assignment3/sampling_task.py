@@ -103,14 +103,15 @@ class sampling_task(task):
         df_20 = pd.DataFrame(array_20, columns=column_names_20, index=self.ip_addresses, dtype=float)
         df_10 = pd.DataFrame(array_10, columns=column_names_10, index=self.ip_addresses, dtype=float)
 
-        self.heatmap(df_20)
-        self.heatmap(df_10)
 
-
-    def heatmap(self, dataframe):
         sns.set(font_scale=1.8)
-        sns.heatmap(data=dataframe, linewidths=1.0, vmax=0.075, cmap='coolwarm')
+        sns.heatmap(data=df_20, linewidths=1.0, vmax=0.02, cmap='coolwarm')
         plt.show()
+
+        sns.set(font_scale=1.8)
+        sns.heatmap(data=df_10, linewidths=1.0, vmax=0.075, cmap='coolwarm')
+        plt.show()
+
 
     def create_datasets(self):
         size = self.df.shape[0]
@@ -132,12 +133,13 @@ class sampling_task(task):
 
     @staticmethod
     def run_task(preprocessing=False, create_minwise_sampling_dataset=False):
-        print("Preprocessing. Wait til it says it is done.")
         if preprocessing:
+            print("Preprocessing. Wait til it says it is done.")
             sampling_task.preprocess(input="datasets/capture20110817.pcap.netflow.labeled",
                                      output="datasets/preprocessed_task_1.csv",
                                      list_of_ips=["147.32.84.229"], task_name="sampling")
-        print("Done.")
+            print("Done.")
+
         time.sleep(3)
 
 
@@ -150,4 +152,6 @@ if __name__ == "__main__":
 
     # Set create_'minwise_sampling_dataset' to True on if you want to create the minwise-sampling datasets,
     # Set it to False use the provided dataset.
-    sampling_task.run_task(preprocessing=True, create_minwise_sampling_dataset=True)
+
+    # Consider setting all on False, as generating might an hour for a fast computer.
+    sampling_task.run_task(preprocessing=False, create_minwise_sampling_dataset=False)
