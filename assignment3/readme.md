@@ -14,12 +14,12 @@
 ### Sampling task
 
 * Run the functions provided in the ```main``` of ```sampling_task.py```.
-* ```sampling_task``` uses the ```MinWiseSampling class```.
+* ```sampling_task``` uses the ```MinWiseSampling class``` in ```misc.py```.
 
 ### Sketching task
 
 * Run the functions provided in the ```main``` of ```sketching_task.py```.
-* ```sketching_task``` uses the ```CountMinSketch class```.
+* ```sketching_task``` uses the ```CountMinSketch class``` in ```misc.py```.
 
 ### Botnet flow data discretization task
 
@@ -27,14 +27,12 @@
 
 ### Botnet profiling task
 
-* Run the functions provided in the ```main``` of ```profiling.py``` below the comment stating ```Botnet Profiling
-Task```.
+* Run the functions provided in the ```main``` of ```profiling.py``` below the comment stating ```Botnet Profiling Task```.
 
 ## Notes
-* Use the preprocessed datasets provided by us or you can generate them yourselves. Be sure to use the correct datasets
-to process with stated in the report. <br />
-* Feel free to ask us questions if you are running into small problems. Look for us at Slack. <br />
-
-We have split the task into several tasks because one group decided to deduct points for readability of the code
-due to code that was clustered together in one file. We have therefore decided to split the tasks to several files, but
-it seems some systems fails to import local files.
+* Every Task uses the ```task class``` in ```task.py```.
+* Use the preprocessed datasets provided by us or you can generate them yourselves. Be sure to use the correct datasets to process with as stated in the report. When you generate the preprocessed datasets yourself, note that this may take a very long time.
+* Feel free to ask us questions if you are running into small problems. Look for us at Slack.
+* We have split the tasks into several files because one group decided to deduct points for readability of the code
+due to code that was clustered together in one file. Therefore we decided to split the tasks to several files, but
+it seems some systems fails to import local files. So we also provided the file ```all.py``` with all the classes in it, which you can run if your system fails to import the files.
