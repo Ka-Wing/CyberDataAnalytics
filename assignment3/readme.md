@@ -2,7 +2,7 @@
 
 ## Reproducing steps
 
-### Please install the following packets for Python 3
+### Please install the following packages for Python 3
 
 * scikit-learn
 * seaborn
